@@ -1,0 +1,21 @@
+package com.oncf.hypervisor.repository;
+
+import com.oncf.hypervisor.domain.CameraEvent;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.Instant;
+
+public interface CameraEventRepository extends JpaRepository<CameraEvent, Long> {
+
+    @Query("""
+            SELECT COUNT(c) FROM CameraEvent c
+            WHERE c.occurredAt >= :since
+              AND SQRT(POWER(c.latitude - :lat, 2) + POWER(c.longitude - :lon, 2)) < :radiusDeg
+            """)
+    long countNearby(@Param("lat") double lat,
+                     @Param("lon") double lon,
+                     @Param("radiusDeg") double radiusDeg,
+                     @Param("since") Instant since);
+}

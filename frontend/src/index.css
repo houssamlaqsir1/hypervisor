@@ -1,0 +1,304 @@
+:root {
+  --bg: #0b1220;
+  --panel: #121a2e;
+  --panel-2: #182239;
+  --border: #243350;
+  --text: #e5edff;
+  --text-dim: #9aa7c2;
+  --accent: #3b82f6;
+  --accent-strong: #2563eb;
+  --success: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --critical: #b91c1c;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, Segoe UI,
+    Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* --- layout --- */
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar h1 {
+  font-size: 16px;
+  margin: 0 0 20px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+.sidebar h1 span {
+  color: var(--accent);
+}
+
+.sidebar nav a {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar nav a:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.sidebar nav a.active {
+  background: var(--accent-strong);
+  color: white;
+}
+
+.sidebar .status {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.status .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--text-dim);
+}
+.status.open .dot { background: var(--success); }
+.status.closed .dot { background: var(--danger); }
+.status.connecting .dot { background: var(--warn); }
+
+.main {
+  padding: 24px 28px;
+  min-width: 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.page-header p {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* --- cards / grids --- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.card .value {
+  font-size: 28px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.card.sev-LOW      { border-left: 4px solid #6b7280; }
+.card.sev-MEDIUM   { border-left: 4px solid var(--warn); }
+.card.sev-HIGH     { border-left: 4px solid var(--danger); }
+.card.sev-CRITICAL { border-left: 4px solid var(--critical); }
+
+/* --- alert list --- */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert-row {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.alert-row.sev-LOW      { border-left-color: #6b7280; }
+.alert-row.sev-MEDIUM   { border-left-color: var(--warn); }
+.alert-row.sev-HIGH     { border-left-color: var(--danger); }
+.alert-row.sev-CRITICAL { border-left-color: var(--critical); }
+
+.alert-row .sev {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.alert-row.sev-LOW      .sev { color: #9ca3af; }
+.alert-row.sev-MEDIUM   .sev { color: var(--warn); }
+.alert-row.sev-HIGH     .sev { color: var(--danger); }
+.alert-row.sev-CRITICAL .sev { color: var(--critical); background: #3b0a0a; }
+
+.alert-row .message {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.alert-row .message strong {
+  font-size: 14px;
+}
+
+.alert-row .message small {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.alert-row time {
+  color: var(--text-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* --- buttons --- */
+.btn {
+  background: var(--accent-strong);
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.btn:hover { background: var(--accent); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+.btn.danger { background: var(--danger); }
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* --- form --- */
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.form-row label { font-size: 13px; color: var(--text-dim); min-width: 90px; }
+.form-row select, .form-row input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+/* --- map --- */
+.map-container {
+  height: calc(100vh - 150px);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.leaflet-container {
+  background: #0b1220;
+}
+
+/* --- timeline --- */
+.timeline {
+  position: relative;
+  padding-left: 20px;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.timeline-item {
+  position: relative;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -26px;
+  top: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.timeline-item.sev-CRITICAL::before { background: var(--critical); }
+.timeline-item.sev-HIGH::before     { background: var(--danger); }
+.timeline-item.sev-MEDIUM::before   { background: var(--warn); }
+.timeline-item.sev-LOW::before      { background: #6b7280; }
+
+.muted { color: var(--text-dim); font-size: 13px; }
