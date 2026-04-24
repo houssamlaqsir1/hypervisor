@@ -3,6 +3,7 @@ package com.oncf.hypervisor.domain;
 import com.oncf.hypervisor.domain.enums.ZoneType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.locationtech.jts.geom.Geometry;
 
 @Entity
 @Table(name = "zones")
@@ -35,6 +36,21 @@ public class Zone {
 
     @Column(name = "radius_m", nullable = false)
     private Double radiusM;
+
+    @Column(name = "elevation_m")
+    private Double elevationM;
+
+    @Column(name = "height_m")
+    private Double heightM;
+
+    @Column(name = "is_tunnel")
+    private Boolean isTunnel;
+
+    @Column(name = "is_bridge")
+    private Boolean isBridge;
+
+    @Column(name = "geom_3d", columnDefinition = "geometry")
+    private Geometry geom3d;
 
     public boolean contains(double lat, double lon) {
         double distance = haversine(centerLat, centerLon, lat, lon);

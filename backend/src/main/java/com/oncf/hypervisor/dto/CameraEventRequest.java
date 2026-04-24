@@ -13,6 +13,7 @@ public record CameraEventRequest(
         @NotNull @DecimalMin("0.0") @DecimalMax("1.0") Double confidence,
         @NotNull Double latitude,
         @NotNull Double longitude,
+        Double elevationM,
         Instant occurredAt,
         Map<String, Object> rawPayload
 ) {}

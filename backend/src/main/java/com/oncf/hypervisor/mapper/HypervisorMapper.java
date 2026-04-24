@@ -1,6 +1,7 @@
 package com.oncf.hypervisor.mapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oncf.hypervisor.domain.*;
 import com.oncf.hypervisor.dto.*;
@@ -26,6 +27,7 @@ public class HypervisorMapper {
                 e.getConfidence(),
                 e.getLatitude(),
                 e.getLongitude(),
+                e.getElevationM(),
                 e.getOccurredAt(),
                 e.getReceivedAt()
         );
@@ -37,6 +39,8 @@ public class HypervisorMapper {
                 e.getSourceId(),
                 e.getLatitude(),
                 e.getLongitude(),
+                e.getElevationM(),
+                e.getTrackLevel(),
                 e.getZone() != null ? e.getZone().getId() : null,
                 e.getZone() != null ? e.getZone().getName() : null,
                 e.getOccurredAt(),
@@ -70,7 +74,11 @@ public class HypervisorMapper {
                 z.getDescription(),
                 z.getCenterLat(),
                 z.getCenterLon(),
-                z.getRadiusM()
+                z.getRadiusM(),
+                z.getElevationM(),
+                z.getHeightM(),
+                z.getIsTunnel(),
+                z.getIsBridge()
         );
     }
 
@@ -81,6 +89,16 @@ public class HypervisorMapper {
         } catch (JsonProcessingException ex) {
             log.warn("Failed to serialize JSON payload", ex);
             return null;
+        }
+    }
+
+    public Map<String, Object> readJson(String payload) {
+        if (payload == null || payload.isBlank()) return Map.of();
+        try {
+            return objectMapper.readValue(payload, new TypeReference<>() {});
+        } catch (JsonProcessingException ex) {
+            log.warn("Failed to parse JSON payload", ex);
+            return Map.of();
         }
     }
 }

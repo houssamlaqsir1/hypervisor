@@ -274,6 +274,165 @@ button {
   background: #0b1220;
 }
 
+/* --- 3D map (Cesium): keep viewer inside a box; HUD floats above it --- */
+.map3d-page {
+  min-width: 0;
+}
+
+.map3d-viewport {
+  position: relative;
+  height: calc(100vh - 96px);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #000;
+  isolation: isolate;
+}
+
+.map3d-viewport .cesium-viewer,
+.map3d-viewport .cesium-viewer-cesiumWidget,
+.map3d-viewport .cesium-widget {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0;
+}
+
+.map3d-viewport canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.map3d-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px;
+  gap: 12px;
+}
+
+.map3d-hud > * {
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.map3d-hud-panel {
+  margin: 0;
+  padding: 12px 14px;
+}
+
+/* Collapsed: stay compact (title + chevron only needs a short strip). */
+.map3d-hud-panel--collapsed {
+  width: fit-content;
+  max-width: min(280px, 100%);
+  padding: 10px 12px;
+}
+
+/* Expanded: same comfortable width as the original HUD (~440px). */
+.map3d-hud-panel--open {
+  width: min(440px, 92vw);
+  max-width: min(440px, 92vw);
+}
+
+.map3d-hud-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 2px;
+}
+
+.map3d-hud-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 0;
+}
+
+.map3d-hud-badge {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.map3d-hud-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.map3d-hud-toggle:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.map3d-hud-chevron {
+  font-size: 10px;
+  line-height: 1;
+  display: block;
+  transform: scaleX(1.15);
+}
+
+.map3d-hud-sub {
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+.map3d-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.map3d-filters label {
+  font-size: 13px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map3d-time {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.map3d-time label {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.map3d-time input[type='range'] {
+  width: 100%;
+  max-width: 100%;
+}
+
+.map3d-alert-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 /* --- timeline --- */
 .timeline {
   position: relative;
@@ -302,3 +461,108 @@ button {
 .timeline-item.sev-LOW::before      { background: #6b7280; }
 
 .muted { color: var(--text-dim); font-size: 13px; }
+
+/* --- map search (Leaflet + 3D) --- */
+.map-toolbar {
+  margin-bottom: 12px;
+}
+
+.map-toolbar-hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.map3d-hud-panel .map3d-filter-tools-row + .map-toolbar-hint {
+  margin-top: 4px;
+}
+
+.map-search-bar {
+  min-width: 0;
+}
+
+.map-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.map-search-row input[type='search'] {
+  flex: 1 1 200px;
+  min-width: 160px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.map-search-locate.btn.secondary {
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.map-search-err,
+.map-search-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.map-search-results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.map-search-results li + li {
+  border-top: 1px solid var(--border);
+}
+
+.map-search-result-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.map-search-result-btn:hover {
+  background: var(--panel);
+}
+
+.map3d-filter-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* Space below the title row so controls don’t sit under the collapse chevron. */
+.map3d-hud-panel--open .map3d-hud-panel-header + .map3d-filter-tools-row {
+  margin-top: 14px;
+}
+
+.map3d-filter-tools-search {
+  flex: 1 1 220px;
+  min-width: 0;
+}

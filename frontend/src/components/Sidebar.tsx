@@ -8,6 +8,7 @@ interface Props {
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/map', label: 'Map view' },
+  { to: '/map3d', label: '3D map' },
   { to: '/simulate', label: 'Simulator' },
   { to: '/history', label: 'History' },
 ]

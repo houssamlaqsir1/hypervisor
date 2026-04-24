@@ -55,6 +55,8 @@ export interface SigEventDto {
   sourceId: string
   latitude: number
   longitude: number
+  elevationM?: number | null
+  trackLevel?: 'GROUND' | 'BRIDGE' | 'TUNNEL' | null
   zoneId: number | null
   zoneName: string | null
   occurredAt: string
@@ -68,5 +70,29 @@ export interface AlertStats {
 
 export interface IngestionResult<T> {
   event: T
+  alerts: Alert[]
+}
+
+export type GeoJsonGeometry =
+  | { type: 'LineString'; coordinates: number[][] }
+  | { type: 'MultiLineString'; coordinates: number[][][] }
+  | { type: 'Polygon'; coordinates: number[][][] }
+  | { type: 'MultiPolygon'; coordinates: number[][][][] }
+
+export interface GeoJsonFeature {
+  type: 'Feature'
+  properties: Record<string, unknown>
+  geometry: GeoJsonGeometry
+}
+
+export interface GeoJsonFeatureCollection {
+  type: 'FeatureCollection'
+  features: GeoJsonFeature[]
+}
+
+export interface Sig3dResponse {
+  terrain: Record<string, unknown>
+  rail: GeoJsonFeatureCollection
+  zones: GeoJsonFeatureCollection
   alerts: Alert[]
 }

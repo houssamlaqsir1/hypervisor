@@ -36,6 +36,7 @@ public class CameraEventService {
                 .confidence(req.confidence())
                 .latitude(req.latitude())
                 .longitude(req.longitude())
+                .elevationM(req.elevationM())
                 .occurredAt(req.occurredAt() != null ? req.occurredAt() : now)
                 .receivedAt(now)
                 .rawPayload(mapper.writeJson(req.rawPayload()))

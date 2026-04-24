@@ -21,6 +21,9 @@ spring:
         format_sql: true
         jdbc:
           time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
 server:
   port: ${SERVER_PORT:8080}

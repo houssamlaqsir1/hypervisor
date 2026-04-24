@@ -40,6 +40,9 @@ public class CameraEvent {
     @Column(nullable = false)
     private Double longitude;
 
+    @Column(name = "elevation_m")
+    private Double elevationM;
+
     @Column(name = "raw_payload", columnDefinition = "text")
     private String rawPayload;
 

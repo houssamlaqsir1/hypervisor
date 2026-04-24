@@ -22,9 +22,10 @@ public class CorrelationEngine {
 
     private final List<CorrelationRule> rules;
     private final ZoneRepository zoneRepository;
+    private static final double DEFAULT_3D_TOLERANCE = 0.0003;
 
     public List<AlertDraft> process(CameraEvent e) {
-        List<Zone> matching = findMatchingZones(e.getLatitude(), e.getLongitude());
+        List<Zone> matching = findMatchingZones(e.getLatitude(), e.getLongitude(), e.getElevationM());
         CorrelationContext ctx = CorrelationContext.forCamera(e, matching);
         List<AlertDraft> drafts = runRules(ctx);
         log.debug("Camera event {} produced {} alert drafts (matching zones={})",
@@ -33,7 +34,7 @@ public class CorrelationEngine {
     }
 
     public List<AlertDraft> process(SigEvent e) {
-        List<Zone> matching = findMatchingZones(e.getLatitude(), e.getLongitude());
+        List<Zone> matching = findMatchingZones(e.getLatitude(), e.getLongitude(), e.getElevationM());
         CorrelationContext ctx = CorrelationContext.forSig(e, matching);
         List<AlertDraft> drafts = runRules(ctx);
         log.debug("SIG event {} produced {} alert drafts", e.getId(), drafts.size());
@@ -53,7 +54,16 @@ public class CorrelationEngine {
                 .toList();
     }
 
-    private List<Zone> findMatchingZones(double lat, double lon) {
+    private List<Zone> findMatchingZones(double lat, double lon, Double elevationM) {
+        double elevation = elevationM != null ? elevationM : 0.0;
+        List<Zone> intersecting = zoneRepository.findIntersecting3d(lat, lon, elevation);
+        if (!intersecting.isEmpty()) {
+            return intersecting;
+        }
+        List<Zone> nearby3d = zoneRepository.findMatching3d(lat, lon, elevation, DEFAULT_3D_TOLERANCE);
+        if (!nearby3d.isEmpty()) {
+            return nearby3d;
+        }
         return zoneRepository.findAll().stream()
                 .filter(z -> z.contains(lat, lon))
                 .toList();

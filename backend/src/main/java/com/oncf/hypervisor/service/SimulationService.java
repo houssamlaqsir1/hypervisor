@@ -2,6 +2,7 @@ package com.oncf.hypervisor.service;
 
 import com.oncf.hypervisor.domain.Zone;
 import com.oncf.hypervisor.domain.enums.CameraEventType;
+import com.oncf.hypervisor.domain.enums.TrackLevel;
 import com.oncf.hypervisor.dto.*;
 import com.oncf.hypervisor.exception.NotFoundException;
 import com.oncf.hypervisor.repository.ZoneRepository;
@@ -41,6 +42,7 @@ public class SimulationService {
                 confidence,
                 loc[0],
                 loc[1],
+                0.0,
                 Instant.now(),
                 raw
         );
@@ -58,6 +60,8 @@ public class SimulationService {
                 "SIG-" + (1 + random.nextInt(5)),
                 loc[0],
                 loc[1],
+                0.0,
+                TrackLevel.GROUND,
                 req.zoneId(),
                 meta,
                 Instant.now()
@@ -75,7 +79,10 @@ public class SimulationService {
 
         // SIG sighting first
         allAlerts.addAll(sigEventService.ingest(new SigEventRequest(
-                "SIG-SCENARIO", lat, lon, zone.getId(),
+                "SIG-SCENARIO", lat, lon,
+                0.0,
+                TrackLevel.GROUND,
+                zone.getId(),
                 Map.of("simulated", true, "scenario", "intrusion"),
                 Instant.now())).alerts());
 
@@ -90,6 +97,7 @@ public class SimulationService {
                     0.85 + random.nextDouble() * 0.14,
                     jitterLat,
                     jitterLon,
+                    0.0,
                     Instant.now(),
                     Map.of("scenario", "intrusion", "step", i)
             ));

@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet'
+import { useCallback, useEffect, useState } from 'react'
+import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { listAlerts } from '../api/alerts'
 import { listZones } from '../api/zones'
 import type { Alert, Zone } from '../types/api'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
+import { MapSearchBar, type MapSearchPick } from '../components/MapSearchBar'
+
+function MapReady({ onMap }: { onMap: (m: L.Map) => void }) {
+  const map = useMap()
+  useEffect(() => {
+    onMap(map)
+  }, [map, onMap])
+  return null
+}
 
 const ZONE_COLORS: Record<Zone['type'], string> = {
   RESTRICTED: '#ef4444',
@@ -36,7 +45,46 @@ function alertIcon(severity: Alert['severity']): L.DivIcon {
 export function MapPage() {
   const [zones, setZones] = useState<Zone[]>([])
   const [loading, setLoading] = useState(true)
+  const [leafletMap, setLeafletMap] = useState<L.Map | null>(null)
+  const [pendingPick, setPendingPick] = useState<MapSearchPick | null>(null)
   const { alerts, seedAlerts } = useLiveAlertsContext()
+
+  const goToPlace = useCallback(
+    (p: MapSearchPick) => {
+      if (!leafletMap) return
+      if (
+        p.west != null &&
+        p.south != null &&
+        p.east != null &&
+        p.north != null
+      ) {
+        leafletMap.fitBounds(
+          [
+            [p.south, p.west],
+            [p.north, p.east],
+          ],
+          { padding: [28, 28], maxZoom: 16 },
+        )
+      } else {
+        leafletMap.flyTo([p.lat, p.lon], 13)
+      }
+    },
+    [leafletMap],
+  )
+
+  const handleMapPick = useCallback(
+    (p: MapSearchPick) => {
+      if (leafletMap) goToPlace(p)
+      else setPendingPick(p)
+    },
+    [leafletMap, goToPlace],
+  )
+
+  useEffect(() => {
+    if (!leafletMap || !pendingPick) return
+    goToPlace(pendingPick)
+    setPendingPick(null)
+  }, [leafletMap, pendingPick, goToPlace])
 
   useEffect(() => {
     Promise.all([listZones(), listAlerts({ limit: 200 })])
@@ -62,8 +110,21 @@ export function MapPage() {
           <p>SIG zones and alert locations in real time.</p>
         </div>
       </div>
+      <div className="card map-toolbar">
+        <MapSearchBar
+          onPick={handleMapPick}
+          suggest
+          mapReadyHint={
+            leafletMap ? null : 'Map is still loading — your search or location will apply when it is ready.'
+          }
+        />
+        <p className="muted map-toolbar-hint">
+          Search uses OpenStreetMap Nominatim via your backend (not Google). “My location” uses the browser GPS.
+        </p>
+      </div>
       <div className="map-container">
         <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }}>
+          <MapReady onMap={setLeafletMap} />
           <TileLayer
             attribution='&copy; OpenStreetMap contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

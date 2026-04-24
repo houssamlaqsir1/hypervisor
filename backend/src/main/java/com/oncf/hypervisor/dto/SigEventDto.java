@@ -1,5 +1,7 @@
 package com.oncf.hypervisor.dto;
 
+import com.oncf.hypervisor.domain.enums.TrackLevel;
+
 import java.time.Instant;
 
 public record SigEventDto(
@@ -7,6 +9,8 @@ public record SigEventDto(
         String sourceId,
         Double latitude,
         Double longitude,
+        Double elevationM,
+        TrackLevel trackLevel,
         Long zoneId,
         String zoneName,
         Instant occurredAt,

@@ -20,6 +20,8 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> search(@Param("severity") AlertSeverity severity,
                        @Param("since") Instant since);
 
+    List<Alert> findTop200ByOrderByCreatedAtDesc();
+
     @Query("SELECT a.severity, COUNT(a) FROM Alert a GROUP BY a.severity")
     List<Object[]> countBySeverity();
 }

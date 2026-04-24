@@ -9,5 +9,9 @@ public record ZoneDto(
         String description,
         Double centerLat,
         Double centerLon,
-        Double radiusM
+        Double radiusM,
+        Double elevationM,
+        Double heightM,
+        Boolean isTunnel,
+        Boolean isBridge
 ) {}

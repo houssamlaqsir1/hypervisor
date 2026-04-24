@@ -1,0 +1,15 @@
+{
+"type": "FeatureCollection",
+"name": "zones_3d",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "full_id": "n11844688657", "osm_id": "11844688657", "osm_type": "node", "barrier": null, "entrance": "yes" }, "geometry": { "type": "Point", "coordinates": [ -6.857915, 34.0019963, 22.0 ] } },
+{ "type": "Feature", "properties": { "full_id": "n11844688658", "osm_id": "11844688658", "osm_type": "node", "barrier": null, "entrance": "yes" }, "geometry": { "type": "Point", "coordinates": [ -6.8582565, 34.0017129, 22.0 ] } },
+{ "type": "Feature", "properties": { "full_id": "n11844688659", "osm_id": "11844688659", "osm_type": "node", "barrier": null, "entrance": "yes" }, "geometry": { "type": "Point", "coordinates": [ -6.8580598, 34.0018761, 21.0 ] } },
+{ "type": "Feature", "properties": { "full_id": "n11844688681", "osm_id": "11844688681", "osm_type": "node", "barrier": null, "entrance": "main" }, "geometry": { "type": "Point", "coordinates": [ -6.8568085, 34.0004583, 26.0 ] } },
+{ "type": "Feature", "properties": { "full_id": "n11844688682", "osm_id": "11844688682", "osm_type": "node", "barrier": null, "entrance": "main" }, "geometry": { "type": "Point", "coordinates": [ -6.8566438, 34.0005914, 28.0 ] } },
+{ "type": "Feature", "properties": { "full_id": "n11844688683", "osm_id": "11844688683", "osm_type": "node", "barrier": null, "entrance": "main" }, "geometry": { "type": "Point", "coordinates": [ -6.8564824, 34.0007219, 25.0 ] } },
+{ "type": "Feature", "properties": { "full_id": "n11865942007", "osm_id": "11865942007", "osm_type": "node", "barrier": "gate", "entrance": null }, "geometry": { "type": "Point", "coordinates": [ -6.8586758, 34.0007599, 21.0 ] } },
+{ "type": "Feature", "properties": { "full_id": "n13230421088", "osm_id": "13230421088", "osm_type": "node", "barrier": "gate", "entrance": null }, "geometry": { "type": "Point", "coordinates": [ -6.8586135, 34.0007543, 21.0 ] } }
+]
+}

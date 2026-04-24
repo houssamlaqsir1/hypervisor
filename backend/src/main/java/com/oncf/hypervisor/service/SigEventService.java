@@ -42,6 +42,8 @@ public class SigEventService {
                 .sourceId(req.sourceId())
                 .latitude(req.latitude())
                 .longitude(req.longitude())
+                .elevationM(req.elevationM())
+                .trackLevel(req.trackLevel())
                 .zone(zone)
                 .metadata(mapper.writeJson(req.metadata()))
                 .occurredAt(req.occurredAt() != null ? req.occurredAt() : now)

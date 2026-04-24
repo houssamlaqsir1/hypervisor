@@ -12,6 +12,7 @@ public record CameraEventDto(
         Double confidence,
         Double latitude,
         Double longitude,
+        Double elevationM,
         Instant occurredAt,
         Instant receivedAt
 ) {}

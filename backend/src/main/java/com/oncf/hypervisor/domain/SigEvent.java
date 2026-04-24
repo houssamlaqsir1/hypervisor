@@ -1,5 +1,6 @@
 package com.oncf.hypervisor.domain;
 
+import com.oncf.hypervisor.domain.enums.TrackLevel;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,6 +29,13 @@ public class SigEvent {
 
     @Column(nullable = false)
     private Double longitude;
+
+    @Column(name = "elevation_m")
+    private Double elevationM;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "track_level", length = 16)
+    private TrackLevel trackLevel;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "zone_id")
