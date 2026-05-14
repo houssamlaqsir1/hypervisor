@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import type { ConnectionState } from '../context/LiveAlertsContext'
+import { useLiveCameras } from '../context/LiveCamerasContext'
 
 interface Props {
   wsState: ConnectionState
@@ -7,13 +8,21 @@ interface Props {
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/live', label: 'Live Watch' },
   { to: '/map', label: 'Map view' },
   { to: '/map3d', label: '3D map' },
-  { to: '/simulate', label: 'Simulator' },
+  { to: '/operations', label: 'Operations' },
   { to: '/history', label: 'History' },
 ]
 
 export function Sidebar({ wsState }: Props) {
+  const { cameras } = useLiveCameras()
+  const liveCount = cameras.filter(
+    (c) => c.enabled && c.status === 'running',
+  ).length
+  const enabledCount = cameras.filter((c) => c.enabled).length
+  const camsLive = liveCount === enabledCount && enabledCount > 0
+
   return (
     <aside className="sidebar">
       <h1>
@@ -26,6 +35,10 @@ export function Sidebar({ wsState }: Props) {
           </NavLink>
         ))}
       </nav>
+      <div className={`status ${camsLive ? 'open' : 'connecting'}`}>
+        <span className="dot" />
+        AI cameras: {liveCount}/{cameras.length} live
+      </div>
       <div className={`status ${wsState}`}>
         <span className="dot" />
         Live feed: {wsState === 'open' ? 'connected' : wsState}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { listAlerts, getAlertStats } from '../api/alerts'
 import type { AlertSeverity, AlertStats } from '../types/api'
 import { AlertRow } from '../components/AlertRow'
@@ -31,6 +31,25 @@ export function DashboardPage() {
     }
   }, [seedAlerts])
 
+  const liveStats = useMemo<AlertStats | null>(() => {
+    if (!stats) return null
+    const bySeverity: AlertStats['bySeverity'] = {
+      CRITICAL: 0,
+      HIGH: 0,
+      MEDIUM: 0,
+      LOW: 0,
+    }
+    for (const a of alerts) {
+      if (a.severity in bySeverity) {
+        bySeverity[a.severity] += 1
+      }
+    }
+    return {
+      total: alerts.length,
+      bySeverity,
+    }
+  }, [alerts, stats])
+
   return (
     <>
       <div className="page-header">
@@ -43,12 +62,12 @@ export function DashboardPage() {
       <div className="stat-grid">
         <div className="card">
           <h3>Total alerts</h3>
-          <div className="value">{stats?.total ?? '—'}</div>
+          <div className="value">{liveStats?.total ?? stats?.total ?? '—'}</div>
         </div>
         {SEVS.map((s) => (
           <div key={s} className={`card sev-${s}`}>
             <h3>{s}</h3>
-            <div className="value">{stats?.bySeverity?.[s] ?? 0}</div>
+            <div className="value">{liveStats?.bySeverity?.[s] ?? stats?.bySeverity?.[s] ?? 0}</div>
           </div>
         ))}
       </div>
@@ -57,7 +76,7 @@ export function DashboardPage() {
       {loading && <p className="muted">Loading…</p>}
       {!loading && alerts.length === 0 && (
         <p className="muted">
-          No alerts yet. Head to the <b>Simulator</b> to generate some events.
+          No alerts yet. Head to the <b>Operations</b> console to receive some events.
         </p>
       )}
       <div className="alert-list">

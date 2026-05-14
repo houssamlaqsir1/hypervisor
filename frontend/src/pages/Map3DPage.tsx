@@ -17,6 +17,7 @@ import {
   Ion,
   PinBuilder,
   PolygonHierarchy,
+  PolylineDashMaterialProperty,
   Rectangle,
   type TerrainProvider,
   type Viewer as CesiumViewer,
@@ -132,6 +133,7 @@ export function Map3DPage() {
   const [showBridges, setShowBridges] = useState(true)
   const [showZones, setShowZones] = useState(true)
   const [showAlerts, setShowAlerts] = useState(true)
+  const [showFusionLinks, setShowFusionLinks] = useState(true)
   const [windowMinutes, setWindowMinutes] = useState(30)
   /** Start minimized so the globe stays clear; expand for search and filters. */
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -380,6 +382,61 @@ export function Map3DPage() {
     })
   }, [filteredAlerts])
 
+  /**
+   * Visualise each FUSION alert as a dashed polyline joining the camera
+   * detection point to the SIG event point. Color encodes the fusion score
+   * so the operator can tell a tight (score 0.9) correlation from a loose
+   * (score 0.6) one at a glance.
+   */
+  const fusionLinks = useMemo(() => {
+    return filteredAlerts
+      .filter((a) => a.source.type === 'FUSION')
+      .map((a) => {
+        const d = a.source.details
+        const cam = d?.camera
+        const sig = d?.sig
+        if (
+          cam == null ||
+          sig == null ||
+          cam.lat == null ||
+          cam.lon == null ||
+          sig.lat == null ||
+          sig.lon == null
+        )
+          return null
+        const camPos = Cartesian3.fromDegrees(
+          cam.lon,
+          cam.lat,
+          (cam.elevationM ?? 0) + 6,
+        )
+        const sigPos = Cartesian3.fromDegrees(
+          sig.lon,
+          sig.lat,
+          (sig.elevationM ?? 0) + 6,
+        )
+        const score = typeof d?.fusionScore === 'number' ? d.fusionScore : 0
+        const baseColor =
+          score >= 0.85
+            ? Color.RED
+            : score >= 0.65
+              ? Color.ORANGE
+              : Color.YELLOW
+        return {
+          id: `fusion-link-${a.source.id}`,
+          positions: [camPos, sigPos],
+          color: baseColor.withAlpha(0.95),
+          score,
+          camId: cam.id ?? 'camera',
+          sigId: sig.sourceId ?? 'sig',
+          distanceM: typeof d?.distanceM === 'number' ? d.distanceM : null,
+          timeDeltaSec:
+            typeof d?.timeDeltaSec === 'number' ? d.timeDeltaSec : null,
+          zoneName: d?.zoneName ?? a.source.zoneName ?? '—',
+        }
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null)
+  }, [filteredAlerts])
+
   const flyToAlert = (alert: Alert) => {
     if (!viewer || alert.latitude == null || alert.longitude == null) return
     viewer.camera.flyTo({
@@ -511,6 +568,38 @@ export function Map3DPage() {
                 )}
               </Entity>
             ))}
+
+          {showAlerts &&
+            showFusionLinks &&
+            fusionLinks.map((link) => (
+              <Entity
+                key={link.id}
+                name={`FUSION ${link.camId} ↔ ${link.sigId}`}
+                description={
+                  `Fusion score <b>${link.score.toFixed(2)}</b><br/>` +
+                  `Zone: ${link.zoneName}<br/>` +
+                  (link.distanceM != null
+                    ? `Distance: ${link.distanceM >= 1000 ? `${(link.distanceM / 1000).toFixed(2)} km` : `${link.distanceM.toFixed(0)} m`}<br/>`
+                    : '') +
+                  (link.timeDeltaSec != null
+                    ? `Δt: ${link.timeDeltaSec}s<br/>`
+                    : '') +
+                  `<small>Dashed line links the camera detection to the SIG event that confirmed it.</small>`
+                }
+              >
+                <PolylineGraphics
+                  positions={link.positions}
+                  width={3}
+                  material={
+                    new PolylineDashMaterialProperty({
+                      color: link.color,
+                      dashLength: 16,
+                    })
+                  }
+                  clampToGround={false}
+                />
+              </Entity>
+            ))}
         </Viewer>
 
         <div className="map3d-hud" aria-label="3D map controls">
@@ -595,6 +684,17 @@ export function Map3DPage() {
                       onChange={(e) => setShowAlerts(e.target.checked)}
                     />{' '}
                     Alerts
+                  </label>
+                  <label
+                    title="Dashed line linking the camera detection point to the SIG event point that confirmed it, for every FUSION alert."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={showFusionLinks}
+                      onChange={(e) => setShowFusionLinks(e.target.checked)}
+                      disabled={!showAlerts}
+                    />{' '}
+                    Fusion links
                   </label>
                 </div>
                 <div className="map3d-time">

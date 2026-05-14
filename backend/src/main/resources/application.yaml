@@ -40,8 +40,39 @@ hypervisor:
     enabled: true
   correlation:
     escalation-window-minutes: 5
-    escalation-threshold: 3
+    escalation-threshold: 4
     high-confidence-threshold: 0.7
+    fusion-window-minutes: 3
+    fusion-radius-m: 150
+    # Spatio-temporal fusion score gate (0..1). Below this the camera↔SIG
+    # pairing is logged but no alert is emitted — keeps the operator console
+    # focused on confident correlations only.
+    min-fusion-score: 0.55
+    # Per-(camera, zone, label) cooldowns so the same stationary scene
+    # doesn't flood the alert log every frame.
+    cooldown-intrusion-sec: 120
+    cooldown-object-on-track-sec: 120
+    cooldown-escalation-sec: 300
+    cooldown-station-activity-sec: 900
+  live:
+    opensky:
+      enabled: ${OPENSKY_ENABLED:true}
+      # The anonymous OpenSky tier accepts ~4 requests/min. 20s = 3/min is a
+      # safe default; sign up for a free account and lower this if you want
+      # tighter tracks.
+      poll-interval-seconds: ${OPENSKY_POLL_SECONDS:20}
+      # Bounding box around Casablanca / Rabat by default. Tweak for other
+      # zones; OpenSky returns every aircraft state in this rectangle.
+      lamin: ${OPENSKY_LAMIN:33.0}
+      lomin: ${OPENSKY_LOMIN:-8.5}
+      lamax: ${OPENSKY_LAMAX:34.4}
+      lomax: ${OPENSKY_LOMAX:-6.5}
+      max-events-per-poll: 8
+      dedupe-window-seconds: 60
+      # Real aircraft are at cruise altitude — project them to ground level
+      # so the fusion rule (which works in 3D) can still pair them with
+      # webcam detections inside our zones.
+      project-to-ground: true
 
 logging:
   level:

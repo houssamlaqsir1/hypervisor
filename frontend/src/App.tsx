@@ -1,11 +1,26 @@
+import { Suspense, lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Sidebar } from './components/Sidebar'
-import { DashboardPage } from './pages/DashboardPage'
-import { MapPage } from './pages/MapPage'
-import { Map3DPage } from './pages/Map3DPage'
-import { SimulatorPage } from './pages/SimulatorPage'
-import { HistoryPage } from './pages/HistoryPage'
 import { useLiveAlertsContext } from './context/LiveAlertsContext'
+
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+)
+const LiveWatchPage = lazy(() =>
+  import('./pages/LiveWatchPage').then((m) => ({ default: m.LiveWatchPage })),
+)
+const MapPage = lazy(() =>
+  import('./pages/MapPage').then((m) => ({ default: m.MapPage })),
+)
+const Map3DPage = lazy(() =>
+  import('./pages/Map3DPage').then((m) => ({ default: m.Map3DPage })),
+)
+const OperationsPage = lazy(() =>
+  import('./pages/OperationsPage').then((m) => ({ default: m.OperationsPage })),
+)
+const HistoryPage = lazy(() =>
+  import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })),
+)
 
 function App() {
   const { connectionState } = useLiveAlertsContext()
@@ -14,13 +29,16 @@ function App() {
     <div className="app">
       <Sidebar wsState={connectionState} />
       <main className="main">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/map3d" element={<Map3DPage />} />
-          <Route path="/simulate" element={<SimulatorPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-        </Routes>
+        <Suspense fallback={<p className="muted">Loading page…</p>}>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/live" element={<LiveWatchPage />} />
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/map3d" element={<Map3DPage />} />
+            <Route path="/operations" element={<OperationsPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   )

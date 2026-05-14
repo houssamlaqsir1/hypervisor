@@ -25,24 +25,23 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Rule 1: a confident <b>person</b> detected inside a {@link ZoneType#RESTRICTED}
- * zone — unauthorised intrusion.
+ * Background informational signal — confirms that a station camera is
+ * "seeing life" without flooding the operator. Fires at most once every
+ * {@value #COOLDOWN_MINUTES} minutes per (camera, zone) and only for
+ * PERSON or ANIMAL detections inside a {@link ZoneType#STATION} zone.
  *
- * <ul>
- *     <li>Severity: HIGH normally, CRITICAL when confidence ≥ 0.9 (clear identification)</li>
- *     <li>Per-camera × zone cooldown of 2 min so a stationary intruder fires once, not every 4 s</li>
- *     <li>Animals in a RESTRICTED zone don't go through this rule (handled by
- *         {@link ObjectOnTrackRule} when on a track, or ignored elsewhere)</li>
- * </ul>
+ * <p>Stations are full of passengers by design, so this rule is
+ * deliberately {@link AlertSeverity#LOW} — it's a heartbeat, not an
+ * incident. Higher-severity rules handle the actual incidents.
  */
 @Component
-@Order(10)
+@Order(12)
 @RequiredArgsConstructor
-public class IntrusionInRestrictedZoneRule implements CorrelationRule {
+public class ModerateStationActivityRule implements CorrelationRule {
 
-    private static final Set<CameraEventType> INTRUSION_TYPES =
-            Set.of(CameraEventType.HUMAN_DETECTED, CameraEventType.INTRUSION);
-    private static final double CRITICAL_CONFIDENCE = 0.9;
+    private static final Set<CameraEventType> ACTIVITY_TYPES =
+            Set.of(CameraEventType.HUMAN_DETECTED, CameraEventType.OBJECT_DETECTED);
+    private static final double MIN_CONFIDENCE = 0.55;
 
     private final CorrelationProperties props;
     private final AlertRepository alertRepository;
@@ -51,52 +50,48 @@ public class IntrusionInRestrictedZoneRule implements CorrelationRule {
     public List<AlertDraft> evaluate(CorrelationContext ctx) {
         CameraEvent e = ctx.cameraEvent();
         if (e == null) return List.of();
-        if (!INTRUSION_TYPES.contains(e.getEventType())) return List.of();
-        if (e.getConfidence() == null || e.getConfidence() < props.highConfidenceThreshold()) {
-            return List.of();
-        }
-        Category category = CameraClassTaxonomy.classify(e.getLabel());
-        if (category != Category.PERSON && category != Category.OTHER) {
-            // Animals / vehicles / luggage are handled by their own rules.
-            // OTHER falls through so legacy INTRUSION events still work even
-            // when the FE didn't attach a label.
+        if (!ACTIVITY_TYPES.contains(e.getEventType())) return List.of();
+        if (e.getConfidence() == null || e.getConfidence() < MIN_CONFIDENCE) return List.of();
+
+        Category cat = CameraClassTaxonomy.classify(e.getLabel());
+        if (cat != Category.PERSON && cat != Category.ANIMAL) return List.of();
+
+        // Skip if a higher-tier rule already qualifies the event (intrusion in RESTRICTED).
+        if (e.getConfidence() >= props.highConfidenceThreshold()
+                && ctx.matchingZones().stream().anyMatch(z -> z.getType() == ZoneType.RESTRICTED)) {
             return List.of();
         }
 
-        Instant since = Instant.now().minusSeconds(props.cooldownIntrusionSec());
+        Instant since = Instant.now().minusSeconds(props.cooldownStationActivitySec());
         return ctx.matchingZones().stream()
-                .filter(z -> z.getType() == ZoneType.RESTRICTED)
+                .filter(z -> z.getType() == ZoneType.STATION)
                 .filter(z -> !alertRepository.existsRecentByCameraLabelZone(
-                        AlertType.INTRUSION, e.getCameraId(), z.getId(), e.getLabel(), since))
-                .map(z -> buildAlert(e, z))
+                        AlertType.ANOMALY, e.getCameraId(), z.getId(), e.getLabel(), since))
+                .map(z -> buildAlert(e, z, cat))
                 .toList();
     }
 
-    private AlertDraft buildAlert(CameraEvent e, Zone z) {
-        double conf = e.getConfidence() != null ? e.getConfidence() : 0.0;
-        AlertSeverity severity = conf >= CRITICAL_CONFIDENCE
-                ? AlertSeverity.CRITICAL
-                : AlertSeverity.HIGH;
-
-        String who = CameraClassTaxonomy.display(e);
+    private AlertDraft buildAlert(CameraEvent e, Zone z, Category cat) {
+        double conf = e.getConfidence();
+        String display = CameraClassTaxonomy.display(e);
         String msg = String.format(
                 Locale.ROOT,
-                "Intrusion — %s inside restricted zone '%s' (cam %s, confidence %d%%)",
-                who, z.getName(), e.getCameraId(), (int) Math.round(conf * 100));
+                "Routine activity — %s in station '%s' (cam %s, confidence %d%%)",
+                display, z.getName(), e.getCameraId(), (int) Math.round(conf * 100));
 
         Map<String, Object> details = new LinkedHashMap<>();
-        details.put("rule", "intrusion");
-        details.put("category", "PERSON");
+        details.put("rule", "stationActivity");
+        details.put("category", cat.name());
         details.put("classLabel", e.getLabel());
-        details.put("displayName", who);
+        details.put("displayName", display);
         details.put("cameraId", e.getCameraId());
         details.put("confidence", round(conf, 3));
         details.put("zoneName", z.getName());
         details.put("zoneType", z.getType().name());
 
         return AlertDraft.builder()
-                .severity(severity)
-                .type(AlertType.INTRUSION)
+                .severity(AlertSeverity.LOW)
+                .type(AlertType.ANOMALY)
                 .message(msg)
                 .latitude(e.getLatitude())
                 .longitude(e.getLongitude())

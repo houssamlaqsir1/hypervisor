@@ -4,6 +4,7 @@ export type AlertType =
   | 'OBJECT_ON_TRACK'
   | 'ESCALATION'
   | 'ANOMALY'
+  | 'FUSION'
   | 'MANUAL'
 export type CameraEventType =
   | 'HUMAN_DETECTED'
@@ -11,6 +12,46 @@ export type CameraEventType =
   | 'INTRUSION'
   | 'ANOMALY'
 export type ZoneType = 'RESTRICTED' | 'TRACK' | 'STATION' | 'NORMAL'
+
+/**
+ * Structured "why" stored on every alert. Empty / undefined for legacy
+ * alerts; populated for FUSION alerts with the spatio-temporal score, the
+ * metric distance / time delta, and the two event endpoints so the UI can
+ * draw a real correlation receipt (and the 3D map can link the points).
+ */
+export interface AlertDetails {
+  fusionScore?: number
+  severity?: AlertSeverity
+  trigger?: 'camera' | 'sig'
+  zoneName?: string
+  zoneType?: ZoneType
+  zoneWeight?: number
+  distanceM?: number
+  timeDeltaSec?: number
+  cameraConfidence?: number
+  subScores?: {
+    proximity?: number
+    recency?: number
+    confidence?: number
+    zone?: number
+  }
+  camera?: {
+    id?: string
+    eventId?: number
+    label?: string
+    lat?: number
+    lon?: number
+    elevationM?: number
+  }
+  sig?: {
+    sourceId?: string
+    eventId?: number
+    lat?: number
+    lon?: number
+    elevationM?: number
+  }
+  [key: string]: unknown
+}
 
 export interface Alert {
   id: number
@@ -23,6 +64,7 @@ export interface Alert {
   zoneName: string | null
   cameraEventId: number | null
   sigEventId: number | null
+  details: AlertDetails | null
   createdAt: string
   dispatched: boolean
   dispatchedAt: string | null

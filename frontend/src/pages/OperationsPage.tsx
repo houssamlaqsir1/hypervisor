@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { listZones } from '../api/zones'
 import type { Alert, Zone } from '../types/api'
 import {
-  runIntrusionScenario,
-  simulateCameraEvent,
-  simulateSigEvent,
-} from '../api/simulation'
+  receiveCameraEvent,
+  receiveSigEvent,
+} from '../api/operations'
 import { AlertRow } from '../components/AlertRow'
 
-export function SimulatorPage() {
+export function OperationsPage() {
   const [zones, setZones] = useState<Zone[]>([])
   const [zoneId, setZoneId] = useState<number | ''>('')
   const [busy, setBusy] = useState(false)
@@ -45,8 +44,12 @@ export function SimulatorPage() {
     <>
       <div className="page-header">
         <div>
-          <h2>Event simulator</h2>
-          <p>Inject synthetic AI-camera and SIG events to exercise the pipeline.</p>
+          <h2>Operations console</h2>
+          <p>
+            Pull events from AI cameras and SIG sensors into the correlation
+            pipeline. Use it for live drills, on-call tests, or to forward
+            signals from sources that aren&apos;t auto-integrated yet.
+          </p>
         </div>
       </div>
 
@@ -71,40 +74,29 @@ export function SimulatorPage() {
             className="btn"
             disabled={busy}
             onClick={() =>
-              act('Simulated camera event', async () =>
-                (await simulateCameraEvent(payload)).alerts,
+              act('AI camera event received', async () =>
+                (await receiveCameraEvent(payload)).alerts,
               )
             }
           >
-            Simulate AI camera event
+            Receive AI camera event
           </button>
           <button
             className="btn secondary"
             disabled={busy}
             onClick={() =>
-              act('Simulated SIG event', async () =>
-                (await simulateSigEvent(payload)).alerts,
+              act('SIG event received', async () =>
+                (await receiveSigEvent(payload)).alerts,
               )
             }
           >
-            Simulate SIG event
-          </button>
-          <button
-            className="btn danger"
-            disabled={busy || !zoneId}
-            onClick={() =>
-              act('Intrusion scenario', () =>
-                runIntrusionScenario(Number(zoneId)),
-              )
-            }
-          >
-            Run intrusion scenario
+            Receive SIG event
           </button>
         </div>
       </div>
 
-      <h3>Simulation log</h3>
-      {log.length === 0 && <p className="muted">No actions yet.</p>}
+      <h3>Activity log</h3>
+      {log.length === 0 && <p className="muted">No events received yet.</p>}
       <div className="alert-list">
         {log.map((entry) => (
           <div key={entry.id} className="card">

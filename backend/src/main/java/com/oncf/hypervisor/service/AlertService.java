@@ -39,6 +39,7 @@ public class AlertService {
                         .severity(d.severity())
                         .type(d.type())
                         .message(d.message())
+                        .details(mapper.writeJson(d.details()))
                         .latitude(d.latitude())
                         .longitude(d.longitude())
                         .zone(d.zone())
@@ -69,7 +70,16 @@ public class AlertService {
 
     @Transactional(readOnly = true)
     public List<AlertDto> search(AlertSeverity severity, Instant since, Integer limit) {
-        List<Alert> results = alertRepository.search(severity, since);
+        List<Alert> results;
+        if (severity != null && since != null) {
+            results = alertRepository.findBySeverityAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(severity, since);
+        } else if (severity != null) {
+            results = alertRepository.findBySeverityOrderByCreatedAtDesc(severity);
+        } else if (since != null) {
+            results = alertRepository.findByCreatedAtGreaterThanEqualOrderByCreatedAtDesc(since);
+        } else {
+            results = alertRepository.findByOrderByCreatedAtDesc();
+        }
         if (limit != null && limit > 0 && results.size() > limit) {
             results = results.subList(0, limit);
         }

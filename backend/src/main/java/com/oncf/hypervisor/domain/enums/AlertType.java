@@ -5,5 +5,7 @@ public enum AlertType {
     OBJECT_ON_TRACK,
     ESCALATION,
     ANOMALY,
+    /** Cross-source confirmation: camera detection AND SIG event near each other. */
+    FUSION,
     MANUAL
 }

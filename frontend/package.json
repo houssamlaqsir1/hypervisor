@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0",
     "cesium": "^1.140.0",
+    "hls.js": "^1.6.16",
     "leaflet": "^1.9.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

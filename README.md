@@ -45,11 +45,11 @@ com.oncf.hypervisor
 ├── dto/            Request / Response records
 ├── mapper/         HypervisorMapper (entity ↔ dto)
 ├── service/
-│   ├── CameraEventService, SigEventService, AlertService, ZoneService, SimulationService
+│   ├── CameraEventService, SigEventService, AlertService, ZoneService, OperationsService
 │   ├── correlation/   CorrelationEngine, CorrelationRule, rules/*
 │   └── external/      AlertRadioClient
 ├── websocket/      AlertBroadcaster
-├── controller/     REST + simulation + mock-radio
+├── controller/     REST + operations + mock-radio
 ├── exception/      GlobalExceptionHandler, ApiError, NotFoundException
 └── bootstrap/      SeedDataLoader (inserts default zones)
 ```
@@ -58,11 +58,11 @@ com.oncf.hypervisor
 
 ```
 frontend/src
-├── api/          client, alerts, zones, simulation
+├── api/          client, alerts, zones, operations
 ├── hooks/        useLiveAlerts (STOMP)
 ├── types/        api.ts
 ├── components/   Sidebar, AlertRow
-└── pages/        DashboardPage, MapPage, SimulatorPage, HistoryPage
+└── pages/        DashboardPage, MapPage, OperationsPage, HistoryPage
 ```
 
 ## Database schema (auto-managed via `ddl-auto: update`)
@@ -82,9 +82,9 @@ frontend/src
 | GET    | `/api/alerts/{id}`                     | —                          |                                                |
 | GET    | `/api/alerts/stats`                    | —                          | Totals + counts per severity                   |
 | GET    | `/api/zones`                           | —                          |                                                |
-| POST   | `/api/simulation/camera`               | `SimulationRequest?`       | Generates a random camera event                |
-| POST   | `/api/simulation/sig`                  | `SimulationRequest?`       | Generates a random SIG event                   |
-| POST   | `/api/simulation/scenario/intrusion`   | `{ zoneId }`               | Scripted multi-event intrusion scenario        |
+| POST   | `/api/operations/camera`               | `OperationsRequest?`       | Receives an operator-generated camera event    |
+| POST   | `/api/operations/sig`                  | `OperationsRequest?`       | Receives an operator-generated SIG event       |
+| POST   | `/api/operations/scenario/intrusion`   | `{ zoneId }`               | Scripted multi-event intrusion operation       |
 | POST   | `/api/alert-radio/receive`             | `AlertDto`                 | Mock external Alert Radio receiver             |
 | WS     | `/ws`  subscribe `/topic/alerts`       | —                          | Live alert push (STOMP over SockJS)            |
 
@@ -169,11 +169,11 @@ docker compose up --build
 
 1. **Schema + entities** — already wired. On first boot, `SeedDataLoader` inserts
    five demo zones around Casa-Voyageurs.
-2. **Verify ingestion** — POST a camera event with `curl` or via the simulator page
+2. **Verify ingestion** — POST a camera event with `curl` or via the operations page
    and watch the logs: you should see correlation, persistence, WebSocket broadcast,
    and the mock radio receiver log line.
-3. **UI smoke test** — open the dashboard, open the simulator, click the three
-   simulation buttons and watch alerts flow in live (no refresh).
+3. **UI smoke test** — open the dashboard, open the operations page, click the
+   operation buttons and watch alerts flow in live (no refresh).
 4. **Extend correlation** — add a new rule (e.g., "SIG reports track maintenance
    while a camera reports movement in that zone"). Drop a class in `service/correlation/rules`
    and it plugs in automatically.

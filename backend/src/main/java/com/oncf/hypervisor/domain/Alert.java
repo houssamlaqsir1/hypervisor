@@ -34,6 +34,16 @@ public class Alert {
     @Column(nullable = false, columnDefinition = "text")
     private String message;
 
+    /**
+     * Structured breakdown of <em>why</em> this alert fired, as JSON. For
+     * FUSION alerts this carries the spatio-temporal score, the metric
+     * distance / time delta, the camera confidence, the zone weight, and
+     * the two event ids — everything the UI needs to render an honest
+     * "correlation receipt" instead of a single opaque sentence.
+     */
+    @Column(columnDefinition = "text")
+    private String details;
+
     private Double latitude;
     private Double longitude;
 

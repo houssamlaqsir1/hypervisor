@@ -22,7 +22,8 @@ import java.util.List;
 @EnableConfigurationProperties({
         AlertRadioProperties.class,
         CorrelationProperties.class,
-        CorsProperties.class
+        CorsProperties.class,
+        LiveProperties.class
 })
 public class SecurityConfig {
 

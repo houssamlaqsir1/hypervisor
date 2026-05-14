@@ -16,24 +16,25 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Generates synthetic events to demo the pipeline without real cameras or SIG.
+ * Operational helpers to inject camera/SIG events when physical integrations
+ * are unavailable or during controlled drills.
  */
 @Service
 @RequiredArgsConstructor
-public class SimulationService {
+public class OperationsService {
 
     private final CameraEventService cameraEventService;
     private final SigEventService sigEventService;
     private final ZoneRepository zoneRepository;
     private final Random random = new Random();
 
-    public CameraEventService.IngestionResult simulateCamera(SimulationRequest req) {
+    public CameraEventService.IngestionResult receiveCamera(OperationsRequest req) {
         double[] loc = resolveLocation(req);
         CameraEventType type = randomType();
-        double confidence = 0.6 + random.nextDouble() * 0.4; // 0.6 - 1.0
+        double confidence = 0.2 + random.nextDouble() * 0.8; // 0.2 - 1.0
         Map<String, Object> raw = new HashMap<>();
-        raw.put("simulated", true);
-        raw.put("source", "sim");
+        raw.put("operationGenerated", true);
+        raw.put("source", "ops");
 
         CameraEventRequest cr = new CameraEventRequest(
                 "CAM-" + (100 + random.nextInt(20)),
@@ -49,10 +50,10 @@ public class SimulationService {
         return cameraEventService.ingest(cr);
     }
 
-    public SigEventService.IngestionResult simulateSig(SimulationRequest req) {
+    public SigEventService.IngestionResult receiveSig(OperationsRequest req) {
         double[] loc = resolveLocation(req);
         Map<String, Object> meta = new HashMap<>();
-        meta.put("simulated", true);
+        meta.put("operationGenerated", true);
         meta.put("heading", random.nextInt(360));
         meta.put("speed_kmh", random.nextInt(120));
 
@@ -69,7 +70,7 @@ public class SimulationService {
         return sigEventService.ingest(sr);
     }
 
-    public List<AlertDto> simulateIntrusionScenario(Long zoneId) {
+    public List<AlertDto> runIntrusionOperation(Long zoneId) {
         Zone zone = zoneRepository.findById(zoneId)
                 .orElseThrow(() -> new NotFoundException("Zone " + zoneId + " not found"));
 
@@ -83,10 +84,10 @@ public class SimulationService {
                 0.0,
                 TrackLevel.GROUND,
                 zone.getId(),
-                Map.of("simulated", true, "scenario", "intrusion"),
+                Map.of("operationGenerated", true, "scenario", "intrusion"),
                 Instant.now())).alerts());
 
-        // Then several high-confidence camera detections → triggers intrusion + escalation
+        // Then several high-confidence camera detections -> triggers intrusion + escalation
         for (int i = 0; i < 4; i++) {
             double jitterLat = lat + (random.nextDouble() - 0.5) * 0.0002;
             double jitterLon = lon + (random.nextDouble() - 0.5) * 0.0002;
@@ -106,7 +107,7 @@ public class SimulationService {
         return allAlerts;
     }
 
-    private double[] resolveLocation(SimulationRequest req) {
+    private double[] resolveLocation(OperationsRequest req) {
         if (req != null && req.latitude() != null && req.longitude() != null) {
             return new double[]{req.latitude(), req.longitude()};
         }

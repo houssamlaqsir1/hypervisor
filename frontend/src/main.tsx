@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
 import { LiveAlertsProvider } from './context/LiveAlertsContext'
+import { LiveCamerasProvider } from './context/LiveCamerasContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <BrowserRouter>
         <LiveAlertsProvider>
-          <App />
+          <LiveCamerasProvider>
+            <App />
+          </LiveCamerasProvider>
         </LiveAlertsProvider>
       </BrowserRouter>
     </ErrorBoundary>

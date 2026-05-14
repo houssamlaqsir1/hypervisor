@@ -25,17 +25,20 @@ export const api = {
 }
 
 /**
- * SockJS + STOMP does long-polling and rapid reconnects. Proxied through Vite's
- * `/ws` proxy that causes noisy `ECONNABORTED` in the terminal (not an app bug).
- * In dev we talk straight to Spring on port 8080; in prod use same-origin `/ws`
- * or set {@code VITE_WS_URL} at build time.
+ * SockJS endpoint for STOMP. On {@code localhost} dev we hit Spring directly on
+ * :8080. On any other host (Cloudflare tunnel, LAN IP) only Vite is reachable,
+ * so we use same-origin {@code /ws} and let Vite proxy to Spring.
  */
 function resolveWsUrl(): string {
   const fromEnv = import.meta.env.VITE_WS_URL as string | undefined
   if (fromEnv) return fromEnv
   if (import.meta.env.DEV && typeof window !== 'undefined') {
-    const host = window.location.hostname
-    return `http://${host}:8080/ws`
+    const { hostname, origin } = window.location
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+    if (!isLocalhost) {
+      return `${origin}/ws`
+    }
+    return `http://${hostname}:8080/ws`
   }
   return '/ws'
 }

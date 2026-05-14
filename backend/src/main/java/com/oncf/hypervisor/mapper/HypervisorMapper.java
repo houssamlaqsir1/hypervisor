@@ -60,10 +60,26 @@ public class HypervisorMapper {
                 a.getZone() != null ? a.getZone().getName() : null,
                 a.getCameraEvent() != null ? a.getCameraEvent().getId() : null,
                 a.getSigEvent() != null ? a.getSigEvent().getId() : null,
+                readJsonOrNull(a.getDetails()),
                 a.getCreatedAt(),
                 a.isDispatched(),
                 a.getDispatchedAt()
         );
+    }
+
+    /**
+     * Like {@link #readJson(String)} but returns {@code null} (not an empty
+     * map) when the source is empty, so the JSON serialiser can omit the
+     * field for alerts that have no structured details.
+     */
+    private Map<String, Object> readJsonOrNull(String payload) {
+        if (payload == null || payload.isBlank()) return null;
+        try {
+            return objectMapper.readValue(payload, new TypeReference<>() {});
+        } catch (JsonProcessingException ex) {
+            log.warn("Failed to parse alert details JSON", ex);
+            return null;
+        }
     }
 
     public ZoneDto toDto(Zone z) {
