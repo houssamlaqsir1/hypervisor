@@ -1,4 +1,7 @@
 spring:
+  config:
+    # Load backend/.env when running locally (gitignored; see .env.example).
+    import: optional:file:.env[.properties]
   application:
     name: hypervisor
 

@@ -142,12 +142,12 @@ Adding a new rule = one class implementing `CorrelationRule`, annotated with
 
 ```bash
 cd backend
+copy .env.example .env
 ./mvnw spring-boot:run
 ```
 
-Requires the environment variables in `application.yaml` or a reachable Supabase.
-Default configuration reads credentials from env vars `DB_URL`, `DB_USER`, and `DB_PASSWORD`.
-Use `backend/.env.example` as a template for the required values.
+Fill in `backend/.env` with your database credentials (`DB_URL`, `DB_USER`, `DB_PASSWORD`).
+Spring Boot loads that file automatically on startup.
 
 ### 2. Frontend
 
