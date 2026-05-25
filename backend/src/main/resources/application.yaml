@@ -3,9 +3,9 @@ spring:
     name: hypervisor
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:5432/postgres}
-    username: ${DB_USER:postgres.dvbykdjajmnpukwafecy}
-    password: ${DB_PASSWORD:L@qs!r1020304050}
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5

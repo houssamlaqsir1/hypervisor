@@ -146,18 +146,20 @@ cd backend
 ```
 
 Requires the environment variables in `application.yaml` or a reachable Supabase.
-Default configuration reads credentials from env vars `DB_URL`, `DB_USER`, `DB_PASSWORD`
-(with the current Supabase values as fallbacks).
+Default configuration reads credentials from env vars `DB_URL`, `DB_USER`, and `DB_PASSWORD`.
+Use `backend/.env.example` as a template for the required values.
 
 ### 2. Frontend
 
 ```bash
 cd frontend
+copy .env.example .env
 npm install
 npm run dev
 ```
 
 Opens on `http://localhost:5173`. Vite proxies `/api` and `/ws` to `http://localhost:8080`.
+Set `VITE_CESIUM_ION_TOKEN` in `frontend/.env` to enable the 3D Cesium map.
 
 ### 3. Docker (optional, both at once)
 
@@ -182,5 +184,5 @@ docker compose up --build
 
 ## Security note
 
-The provided Supabase credentials are for a demo database. For a production-grade
-PFE deliverable, move them to `.env` or a secrets manager and rotate them.
+Do not commit real database credentials, Cesium tokens, or other secrets. Keep local
+values in ignored `.env` files or in your deployment platform's secrets manager.
