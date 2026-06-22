@@ -25,6 +25,12 @@ public class SeedDataLoader implements CommandLineRunner {
     public void run(String... args) {
         List<Zone> seeds = List.of(
                 Zone.builder()
+                        .name("Rabat Agdal Platform")
+                        .type(ZoneType.STATION)
+                        .description("Passenger platform - Rabat Agdal (live camera site)")
+                        .centerLat(34.0075).centerLon(-6.8533).radiusM(120.0)
+                        .build(),
+                Zone.builder()
                         .name("Casa-Voyageurs Platform")
                         .type(ZoneType.STATION)
                         .description("Main passenger platform - public area")

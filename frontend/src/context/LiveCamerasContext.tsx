@@ -20,7 +20,7 @@ import { pushWebcamEvent } from '../api/live'
 /*  Camera registry                                                   */
 /* ------------------------------------------------------------------ */
 
-export type CameraKind = 'pc-webcam' | 'phone-hls'
+export type CameraKind = 'hls'
 
 /**
  * A single AI camera the hypervisor watches. {@code id} is what gets
@@ -32,12 +32,11 @@ export interface CameraConfig {
   id: string
   label: string
   kind: CameraKind
-  /** Only populated for phone-hls cameras. */
-  hlsUrl?: string
+  hlsUrl: string
 }
 
 function buildDefaultCameras(): CameraConfig[] {
-  const phoneHlsUrl =
+  const hlsUrl =
     typeof window !== 'undefined'
       ? `${window.location.protocol}//${window.location.hostname}:8888/iphone/index.m3u8`
       : 'http://localhost:8888/iphone/index.m3u8'
@@ -45,15 +44,9 @@ function buildDefaultCameras(): CameraConfig[] {
     {
       key: 'cam-1',
       id: 'CAM-LIVE-1',
-      label: 'Camera 1 — PC webcam (browser AI)',
-      kind: 'pc-webcam',
-    },
-    {
-      key: 'cam-2',
-      id: 'PHONE-XEOMA',
-      label: 'Camera 2 — iPhone (Larix / Xeoma)',
-      kind: 'phone-hls',
-      hlsUrl: phoneHlsUrl,
+      label: 'Camera 1 — iPhone (Larix)',
+      kind: 'hls',
+      hlsUrl,
     },
   ]
 }
@@ -120,8 +113,13 @@ const RELEVANT_CLASSES: Record<
   dog: { label: 'dog', type: 'OBJECT_DETECTED' },
 }
 
-/** Casablanca city center — used when no zone is bound and geolocation fails. */
-const FALLBACK_COORDS: [number, number] = [33.5731, -7.5898]
+/** Rabat Agdal — used when no zone is bound and geolocation fails. */
+const FALLBACK_COORDS: [number, number] = [34.0075, -6.8533]
+
+function pickDefaultZoneId(zones: Zone[]): number | '' {
+  const rabat = zones.find((z) => /rabat/i.test(z.name))
+  return rabat?.id ?? zones[0]?.id ?? ''
+}
 
 /* ------------------------------------------------------------------ */
 /*  Provider                                                          */
@@ -162,7 +160,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
   /** Refs are the source of truth for video DOM nodes (rendered hidden below). */
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
   const hlsRefs = useRef<Record<string, Hls | null>>({})
-  const streamRefs = useRef<Record<string, MediaStream | null>>({})
   /** Per-camera detection bookkeeping — refs to avoid render churn. */
   const lastPostedRef = useRef<Record<string, Map<string, number>>>({})
   const roundRobinIdxRef = useRef<number>(0)
@@ -235,13 +232,14 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
         if (cancelled) return
         setZones(zs)
         // If no zone is bound and we have one, default to the first.
+        const defaultZoneId = pickDefaultZoneId(zs)
         setRuntimes((prev) => {
-          if (zs.length === 0) return prev
+          if (defaultZoneId === '') return prev
           let next = prev
           for (const c of CAMERAS) {
             if (next[c.key]?.zoneId === '' && zoneInitial[c.key] === '') {
               if (next === prev) next = { ...prev }
-              next[c.key] = { ...next[c.key], zoneId: zs[0].id }
+              next[c.key] = { ...next[c.key], zoneId: defaultZoneId }
             }
           }
           return next
@@ -288,72 +286,54 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
       updateCamera(key, { status: 'starting', error: null })
 
       try {
-        if (cam.kind === 'pc-webcam') {
-          if (!window.isSecureContext) {
-            throw new Error(
-              'Webcam requires a secure context (HTTPS or localhost).',
-            )
-          }
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 640, height: 480, facingMode: 'environment' },
-            audio: false,
-          })
-          streamRefs.current[key] = stream
-          videoEl.srcObject = stream
-          await videoEl.play().catch(() => {
-            /* autoplay denied is fine; coco-ssd reads frames either way */
-          })
-          updateCamera(key, { status: 'running' })
-        } else if (cam.kind === 'phone-hls') {
-          const url = cam.hlsUrl
-          if (!url) throw new Error('Phone camera has no HLS URL configured.')
+        const url = cam.hlsUrl
+        if (!url) throw new Error('Camera has no HLS URL configured.')
 
-          if (Hls.isSupported()) {
-            const hls = new Hls({
-              enableWorker: false,
-              lowLatencyMode: true,
-              manifestLoadingTimeOut: 25_000,
-              fragLoadingTimeOut: 25_000,
-            })
-            hlsRefs.current[key] = hls
-            hls.loadSource(url)
-            hls.attachMedia(videoEl)
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              void videoEl.play().catch(() => {
-                /* autoplay policy — irrelevant for headless detection */
-              })
-              updateCamera(key, { status: 'running' })
-            })
-            hls.on(Hls.Events.ERROR, (_, data) => {
-              if (!data.fatal) return
-              const details =
-                typeof data.details === 'string' ? `: ${data.details}` : ''
-              const msg = `HLS ${data.type}${details}. Check MediaMTX / Larix.`
-              hls.destroy()
-              hlsRefs.current[key] = null
-              updateCamera(key, { status: 'error', error: msg })
-              // Auto-retry HLS after a delay — phones drop in and out.
-              window.setTimeout(() => {
-                if (runtimesRef.current[key]?.enabled) {
-                  updateCamera(key, { status: 'idle' })
-                  void startCameraRef.current(key)
-                }
-              }, 15_000)
-            })
-          } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-            videoEl.src = url
-            videoEl.onloadeddata = () => updateCamera(key, { status: 'running' })
-            videoEl.onerror = () =>
-              updateCamera(key, {
-                status: 'error',
-                error: 'Native HLS failed — try a Chromium browser.',
-              })
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            enableWorker: false,
+            lowLatencyMode: true,
+            manifestLoadingTimeOut: 25_000,
+            fragLoadingTimeOut: 25_000,
+          })
+          hlsRefs.current[key] = hls
+          hls.loadSource(url)
+          hls.attachMedia(videoEl)
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
             void videoEl.play().catch(() => {
-              /* autoplay blocked */
+              /* autoplay policy — irrelevant for headless detection */
             })
-          } else {
-            throw new Error('HLS is not supported in this browser.')
-          }
+            updateCamera(key, { status: 'running' })
+          })
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (!data.fatal) return
+            const details =
+              typeof data.details === 'string' ? `: ${data.details}` : ''
+            const msg = `HLS ${data.type}${details}. Check MediaMTX / Larix.`
+            hls.destroy()
+            hlsRefs.current[key] = null
+            updateCamera(key, { status: 'error', error: msg })
+            // Auto-retry HLS after a delay — phones drop in and out.
+            window.setTimeout(() => {
+              if (runtimesRef.current[key]?.enabled) {
+                updateCamera(key, { status: 'idle' })
+                void startCameraRef.current(key)
+              }
+            }, 15_000)
+          })
+        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+          videoEl.src = url
+          videoEl.onloadeddata = () => updateCamera(key, { status: 'running' })
+          videoEl.onerror = () =>
+            updateCamera(key, {
+              status: 'error',
+              error: 'Native HLS failed — try a Chromium browser.',
+            })
+          void videoEl.play().catch(() => {
+            /* autoplay blocked */
+          })
+        } else {
+          throw new Error('HLS is not supported in this browser.')
         }
       } catch (e) {
         console.error(`LiveCameras: failed to start ${key}`, e)
@@ -378,11 +358,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
       if (hls) {
         hls.destroy()
         hlsRefs.current[key] = null
-      }
-      const stream = streamRefs.current[key]
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop())
-        streamRefs.current[key] = null
       }
       const video = videoRefs.current[key]
       if (video) {
@@ -542,7 +517,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
             longitude: lon,
             elevationM: 0,
             rawPayload: {
-              source: cam.kind === 'phone-hls' ? 'phone_hls' : 'browser_webcam',
+              source: 'phone_hls',
               model: 'coco-ssd',
               bbox: d.bbox,
               class: d.class,
@@ -607,7 +582,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
       {/*
         Hidden DOM-attached videos the provider drives. They keep playing
         and feeding detection even when the operator is on another route.
-        Width/height = 1px so getUserMedia / hls.js stay healthy (browsers
+        Width/height = 1px so hls.js stays healthy (browsers
         sometimes pause truly-detached or 0-size videos).
       */}
       <div
@@ -632,7 +607,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
             }}
             muted
             playsInline
-            // autoPlay handled imperatively so HLS / getUserMedia can start cleanly.
+            // autoPlay handled imperatively so HLS can start cleanly.
           />
         ))}
       </div>

@@ -21,6 +21,9 @@ const OperationsPage = lazy(() =>
 const HistoryPage = lazy(() =>
   import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })),
 )
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+)
 
 function App() {
   const { connectionState } = useLiveAlertsContext()
@@ -37,6 +40,7 @@ function App() {
             <Route path="/map3d" element={<Map3DPage />} />
             <Route path="/operations" element={<OperationsPage />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Suspense>
       </main>

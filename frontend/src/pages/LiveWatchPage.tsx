@@ -5,19 +5,16 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { Alert } from '../types/api'
 import {
   getLiveStatus,
   pushGpsEvent,
   type LiveStatusSnapshot,
 } from '../api/live'
-import { useLiveAlertsContext } from '../context/LiveAlertsContext'
 import {
   CAMERAS as CAMERA_REGISTRY,
   useLiveCameras,
   type CameraRuntime,
 } from '../context/LiveCamerasContext'
-import { AlertRow } from '../components/AlertRow'
 
 type GpsState = 'idle' | 'starting' | 'running' | 'error'
 
@@ -79,7 +76,6 @@ export function LiveWatchPage() {
     setCameraEnabled,
     getVideoElement,
   } = useLiveCameras()
-  const { alerts } = useLiveAlertsContext()
 
   /* ----------------------- preview selection ----------------------- */
 
@@ -95,8 +91,7 @@ export function LiveWatchPage() {
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
 
   /* Mirror the provider's hidden video into the visible preview via
-   * {@code captureStream()}. This works for both webcam (MediaStream) and
-   * HLS (MSE-backed video) without duplicating connections. */
+   * {@code captureStream()} without duplicating the HLS connection. */
   useEffect(() => {
     const visible = previewVideoRef.current
     if (!visible) return
@@ -199,8 +194,9 @@ export function LiveWatchPage() {
 
   useEffect(() => {
     if (gpsZoneId === '' && zones.length > 0) {
+      const rabat = zones.find((z) => /rabat/i.test(z.name))
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setGpsZoneId(zones[0].id)
+      setGpsZoneId(rabat?.id ?? zones[0].id)
     }
   }, [zones, gpsZoneId])
 
@@ -270,98 +266,6 @@ export function LiveWatchPage() {
 
   useEffect(() => () => stopGps(), [stopGps])
 
-  /* ------------------------- Xeoma webhook card --------------------- */
-
-  const defaultBackendBase = useMemo(() => {
-    if (typeof window === 'undefined') return 'http://localhost:8080'
-    const { protocol, hostname } = window.location
-    return `${protocol}//${hostname}:8080`
-  }, [])
-
-  const [xeomaCameraKey, setXeomaCameraKey] = useState<string>(
-    () =>
-      CAMERA_REGISTRY.find((c) => c.kind === 'phone-hls')?.key ??
-      CAMERA_REGISTRY[0]?.key ??
-      '',
-  )
-  const [xeomaBackendBase, setXeomaBackendBase] = useState(defaultBackendBase)
-  const [xeomaZoneId, setXeomaZoneId] = useState<number | ''>('')
-  const [copied, setCopied] = useState<'get' | 'post' | null>(null)
-
-  useEffect(() => {
-    if (xeomaZoneId === '' && zones.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setXeomaZoneId(zones[0].id)
-    }
-  }, [zones, xeomaZoneId])
-
-  const xeomaCamera = useMemo(
-    () => cameras.find((c) => c.key === xeomaCameraKey),
-    [cameras, xeomaCameraKey],
-  )
-
-  const xeomaBaseTrimmed = useMemo(
-    () => xeomaBackendBase.replace(/\/+$/, ''),
-    [xeomaBackendBase],
-  )
-
-  const xeomaGetUrl = useMemo(() => {
-    const params = new URLSearchParams()
-    params.set('cameraId', xeomaCamera?.id ?? 'PHONE-XEOMA')
-    if (xeomaZoneId !== '') params.set('zoneId', String(xeomaZoneId))
-    params.set('label', '%CLASS%')
-    params.set('detector', '%DETECTOR_NAME%')
-    params.set('detail', '%CAMERA_NAME%')
-    params.set('source', 'xeoma')
-    return `${xeomaBaseTrimmed}/api/live/ip-camera?${params.toString()}`
-  }, [xeomaBaseTrimmed, xeomaCamera, xeomaZoneId])
-
-  const xeomaPostBody = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          cameraId: xeomaCamera?.id ?? 'PHONE-XEOMA',
-          zoneId: xeomaZoneId === '' ? null : xeomaZoneId,
-          label: '%CLASS%',
-          detector: '%DETECTOR_NAME%',
-          detail: '%CAMERA_NAME%',
-          source: 'xeoma',
-        },
-        null,
-        2,
-      ),
-    [xeomaCamera, xeomaZoneId],
-  )
-  const xeomaPostUrl = `${xeomaBaseTrimmed}/api/live/ip-camera`
-
-  const copyToClipboard = useCallback(
-    async (text: string, kind: 'get' | 'post') => {
-      try {
-        await navigator.clipboard.writeText(text)
-        setCopied(kind)
-        window.setTimeout(() => setCopied(null), 1500)
-      } catch (e) {
-        console.warn('clipboard write failed', e)
-      }
-    },
-    [],
-  )
-
-  const xeomaWarnLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(
-    xeomaBaseTrimmed,
-  )
-
-  /* ---------------------------- alerts ----------------------------- */
-
-  const fusionAlerts = useMemo(
-    () => alerts.filter((a: Alert) => a.type === 'FUSION').slice(0, 8),
-    [alerts],
-  )
-  const otherAlerts = useMemo(
-    () => alerts.filter((a: Alert) => a.type !== 'FUSION').slice(0, 12),
-    [alerts],
-  )
-
   /* ----------------------------- render ----------------------------- */
 
   return (
@@ -419,7 +323,7 @@ export function LiveWatchPage() {
               muted
               playsInline
               className="webcam-video"
-              controls={selectedCamera?.kind === 'phone-hls'}
+              controls
             />
             <canvas ref={overlayCanvasRef} className="webcam-overlay" />
             {selectedCamera && selectedCamera.status !== 'running' && (
@@ -596,7 +500,7 @@ export function LiveWatchPage() {
             GPS events posted this session: <b>{gpsPostedCount}</b>
           </div>
           <div className="status-row">
-            <span>Total webcam events (all sessions)</span>
+            <span>Total camera AI events (all sessions)</span>
             <b>{status?.webcamEventsTotal ?? 0}</b>
           </div>
           <div className="status-row">
@@ -604,140 +508,6 @@ export function LiveWatchPage() {
             <b>{status?.gpsEventsTotal ?? 0}</b>
           </div>
         </div>
-
-        <div className="card live-card">
-          <div className="live-card-header">
-            <h3>Phone / IP camera (Xeoma)</h3>
-            <span className="pill pill-running">webhook</span>
-          </div>
-          <div className="muted small" style={{ marginBottom: 8 }}>
-            Use Xeoma's <b>HTTP Request Sender</b> module — every time its
-            on-board AI fires (motion, object, person, face…), it hits the
-            URL below and a real CameraEvent enters the correlation engine.
-            Works alongside the browser detection above, or instead of it.
-          </div>
-
-          <div className="form-row">
-            <label>Camera</label>
-            <select
-              value={xeomaCameraKey}
-              onChange={(e) => setXeomaCameraKey(e.target.value)}
-            >
-              {cameras.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <label>Bind to zone</label>
-            <select
-              value={xeomaZoneId}
-              onChange={(e) =>
-                setXeomaZoneId(e.target.value ? Number(e.target.value) : '')
-              }
-            >
-              <option value="">(default location)</option>
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name} — {z.type}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <label>Backend URL</label>
-            <input
-              type="text"
-              value={xeomaBackendBase}
-              onChange={(e) => setXeomaBackendBase(e.target.value)}
-              placeholder="http://192.168.1.42:8080"
-            />
-          </div>
-          {xeomaWarnLocalhost && (
-            <div className="muted small" style={{ color: 'var(--warn)' }}>
-              Heads-up: <code>localhost</code> works only when Xeoma runs on
-              this same machine. From your iPhone, replace it with the LAN IP
-              of this PC (e.g. <code>192.168.x.x</code>).
-            </div>
-          )}
-
-          <div className="webhook-block">
-            <div className="webhook-block-header">
-              <b>1. Easy: GET URL with placeholders</b>
-              <button
-                className="btn secondary btn-sm"
-                onClick={() => copyToClipboard(xeomaGetUrl, 'get')}
-              >
-                {copied === 'get' ? 'Copied!' : 'Copy URL'}
-              </button>
-            </div>
-            <code className="webhook-url">{xeomaGetUrl}</code>
-          </div>
-
-          <div className="webhook-block">
-            <div className="webhook-block-header">
-              <b>2. Or: POST JSON body</b>
-              <button
-                className="btn secondary btn-sm"
-                onClick={() =>
-                  copyToClipboard(
-                    `${xeomaPostUrl}\n\n${xeomaPostBody}`,
-                    'post',
-                  )
-                }
-              >
-                {copied === 'post' ? 'Copied!' : 'Copy URL + body'}
-              </button>
-            </div>
-            <code className="webhook-url">{xeomaPostUrl}</code>
-            <pre className="webhook-body">{xeomaPostBody}</pre>
-          </div>
-
-          <div className="status-row">
-            <span>Last Xeoma / IP-camera event</span>
-            <b>{relativeAgeISO(status?.lastIpCameraEventAt)}</b>
-          </div>
-          <div className="status-row">
-            <span>Total Xeoma / IP-camera events</span>
-            <b>{status?.ipCameraEventsTotal ?? 0}</b>
-          </div>
-          {status?.lastIpCameraSource && (
-            <div className="muted small">
-              Last source label: <code>{status.lastIpCameraSource}</code>
-            </div>
-          )}
-          <div className="btn-row" style={{ marginTop: 8 }}>
-            <button
-              className="btn secondary btn-sm"
-              onClick={() => window.open(xeomaGetUrl, '_blank', 'noopener')}
-            >
-              Test the URL in a new tab
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <h3 style={{ marginTop: 24 }}>Live FUSION alerts (camera × SIG)</h3>
-      {fusionAlerts.length === 0 && (
-        <p className="muted">
-          No fusion yet. The cameras are watching — when both a camera
-          detection and a SIG event land in the same zone within the fusion
-          window, an alert appears here automatically.
-        </p>
-      )}
-      <div className="alert-list">
-        {fusionAlerts.map((a) => (
-          <AlertRow key={a.id} alert={a} />
-        ))}
-      </div>
-
-      <h3 style={{ marginTop: 20 }}>Other recent alerts</h3>
-      <div className="alert-list">
-        {otherAlerts.map((a) => (
-          <AlertRow key={a.id} alert={a} />
-        ))}
       </div>
     </>
   )
