@@ -62,8 +62,6 @@ export type CameraStatus = 'idle' | 'starting' | 'running' | 'error'
 export interface CameraRuntime extends CameraConfig {
   status: CameraStatus
   error: string | null
-  /** Zone the operator has bound this camera to (events are pinned to its center). */
-  zoneId: number | ''
   /** Whether the operator wants this camera live; persisted in localStorage. */
   enabled: boolean
   lastDetectionAt: number | null
@@ -74,7 +72,6 @@ export interface CameraRuntime extends CameraConfig {
 interface LiveCamerasContextValue {
   cameras: CameraRuntime[]
   zones: Zone[]
-  setCameraZoneId: (cameraKey: string, zoneId: number | '') => void
   setCameraEnabled: (cameraKey: string, enabled: boolean) => void
   /**
    * Hidden video element the provider drives. Use this to mirror the feed
@@ -95,6 +92,19 @@ const TOTAL_DETECTION_FPS = 2
 const POST_COOLDOWN_MS = 4_000
 const MIN_CONFIDENCE = 0.55
 
+/**
+ * Fall-detection heuristic: a person's bounding box height/width ratio is
+ * normally well above 1 (taller than wide). If it flips to a short, wide
+ * box within a couple of seconds, that's a real shape change consistent
+ * with a collapse — a genuine hazard signal, independent of confidence
+ * banding or how long the person has been in frame.
+ */
+const FALL_WINDOW_MS = 3_000
+const FALL_MIN_SPAN_MS = 400
+const FALL_UPRIGHT_RATIO = 1.3
+const FALL_PRONE_RATIO = 0.8
+const FALL_POST_COOLDOWN_MS = 30_000
+
 /** COCO-SSD classes worth correlating against. Everything else gets dropped. */
 const RELEVANT_CLASSES: Record<
   string,
@@ -113,20 +123,21 @@ const RELEVANT_CLASSES: Record<
   dog: { label: 'dog', type: 'OBJECT_DETECTED' },
 }
 
-/** Rabat Agdal — used when no zone is bound and geolocation fails. */
+/**
+ * Rabat Agdal — last-resort default, used only until the browser's first
+ * GPS fix comes in (or if geolocation is unsupported/denied). The live
+ * camera ({@code CAM-LIVE-1}) is a handheld/mobile device, not a fixed
+ * installation, so it's deliberately left unregistered server-side and
+ * relies on the phone's actual live position (see {@code currentCoords}
+ * below) instead of a surveyed location.
+ */
 const FALLBACK_COORDS: [number, number] = [34.0075, -6.8533]
-
-function pickDefaultZoneId(zones: Zone[]): number | '' {
-  const rabat = zones.find((z) => /rabat/i.test(z.name))
-  return rabat?.id ?? zones[0]?.id ?? ''
-}
 
 /* ------------------------------------------------------------------ */
 /*  Provider                                                          */
 /* ------------------------------------------------------------------ */
 
 const ENABLED_KEY = 'hypervisor:live-cameras:enabled'
-const ZONE_KEY = 'hypervisor:live-cameras:zone'
 
 function loadEnabledMap(): Record<string, boolean> {
   if (typeof window === 'undefined') return {}
@@ -134,18 +145,6 @@ function loadEnabledMap(): Record<string, boolean> {
     const raw = window.localStorage.getItem(ENABLED_KEY)
     if (!raw) return {}
     const parsed = JSON.parse(raw) as Record<string, boolean>
-    return parsed ?? {}
-  } catch {
-    return {}
-  }
-}
-
-function loadZoneMap(): Record<string, number | ''> {
-  if (typeof window === 'undefined') return {}
-  try {
-    const raw = window.localStorage.getItem(ZONE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as Record<string, number | ''>
     return parsed ?? {}
   } catch {
     return {}
@@ -162,6 +161,9 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
   const hlsRefs = useRef<Record<string, Hls | null>>({})
   /** Per-camera detection bookkeeping — refs to avoid render churn. */
   const lastPostedRef = useRef<Record<string, Map<string, number>>>({})
+  /** Rolling aspect-ratio history per camera, used by the fall-detection heuristic below. */
+  const fallHistoryRef = useRef<Record<string, { ratio: number; t: number }[]>>({})
+  const lastFallPostedRef = useRef<Record<string, number>>({})
   const roundRobinIdxRef = useRef<number>(0)
   const detectIntervalRef = useRef<number | null>(null)
   const detectingRef = useRef<boolean>(false)
@@ -171,6 +173,21 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
   const startCameraRef = useRef<(key: string) => Promise<void>>(
     async () => undefined,
   )
+  /**
+   * This provider runs wherever the dashboard is open — often a PC — which
+   * is not necessarily where the camera physically is. Calling
+   * `navigator.geolocation` here would report *this device's* position,
+   * not the camera's, so it deliberately doesn't try. A handheld/mobile
+   * camera (the phone) reports its own real GPS independently, from a page
+   * opened directly on it (see {@code PhoneGpsPage} + `/api/live/camera-position`);
+   * the backend prefers that live report over whatever coordinates ride
+   * along with the detection event. This is only the last-resort value for
+   * an unregistered camera that also isn't reporting its own position.
+   */
+  const currentCoords = useCallback(
+    (): [number, number, number] => [FALLBACK_COORDS[0], FALLBACK_COORDS[1], 0],
+    [],
+  )
 
   const [zones, setZones] = useState<Zone[]>([])
   const enabledInitial = useMemo(() => {
@@ -179,13 +196,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
       CAMERAS.map((c) => [c.key, stored[c.key] ?? true]),
     ) as Record<string, boolean>
   }, [])
-  const zoneInitial = useMemo(() => {
-    const stored = loadZoneMap()
-    return Object.fromEntries(
-      CAMERAS.map((c) => [c.key, stored[c.key] ?? '']),
-    ) as Record<string, number | ''>
-  }, [])
-
   const [runtimes, setRuntimes] = useState<Record<string, CameraRuntime>>(
     () => {
       const out: Record<string, CameraRuntime> = {}
@@ -194,7 +204,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
           ...c,
           status: 'idle',
           error: null,
-          zoneId: zoneInitial[c.key],
           enabled: enabledInitial[c.key],
           lastDetectionAt: null,
           postedCount: 0,
@@ -229,27 +238,13 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     let cancelled = false
     listZones()
       .then((zs) => {
-        if (cancelled) return
-        setZones(zs)
-        // If no zone is bound and we have one, default to the first.
-        const defaultZoneId = pickDefaultZoneId(zs)
-        setRuntimes((prev) => {
-          if (defaultZoneId === '') return prev
-          let next = prev
-          for (const c of CAMERAS) {
-            if (next[c.key]?.zoneId === '' && zoneInitial[c.key] === '') {
-              if (next === prev) next = { ...prev }
-              next[c.key] = { ...next[c.key], zoneId: defaultZoneId }
-            }
-          }
-          return next
-        })
+        if (!cancelled) setZones(zs)
       })
       .catch((e) => console.warn('LiveCameras: zones fetch failed', e))
     return () => {
       cancelled = true
     }
-  }, [zoneInitial])
+  }, [])
 
   /* --------------------------- model load -------------------------- */
 
@@ -324,11 +319,21 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
         } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
           videoEl.src = url
           videoEl.onloadeddata = () => updateCamera(key, { status: 'running' })
-          videoEl.onerror = () =>
+          videoEl.onerror = () => {
             updateCamera(key, {
               status: 'error',
-              error: 'Native HLS failed — try a Chromium browser.',
+              error: 'Native HLS failed — retrying…',
             })
+            // Same auto-retry as the hls.js branch below — without this, a
+            // dropped native-HLS stream (Safari) never recovers on its own
+            // and detection just stops silently until the page is reloaded.
+            window.setTimeout(() => {
+              if (runtimesRef.current[key]?.enabled) {
+                updateCamera(key, { status: 'idle' })
+                void startCameraRef.current(key)
+              }
+            }, 15_000)
+          }
           void videoEl.play().catch(() => {
             /* autoplay blocked */
           })
@@ -383,14 +388,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     }
   }, [])
 
-  const persistZones = useCallback((map: Record<string, number | ''>) => {
-    try {
-      window.localStorage.setItem(ZONE_KEY, JSON.stringify(map))
-    } catch {
-      /* ignore */
-    }
-  }, [])
-
   const setCameraEnabled = useCallback(
     (cameraKey: string, enabled: boolean) => {
       setRuntimes((prev) => {
@@ -411,23 +408,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
       }
     },
     [persistEnabled, startCamera, stopCamera],
-  )
-
-  const setCameraZoneId = useCallback(
-    (cameraKey: string, zoneId: number | '') => {
-      setRuntimes((prev) => {
-        const cur = prev[cameraKey]
-        if (!cur) return prev
-        const next = { ...prev, [cameraKey]: { ...cur, zoneId } }
-        persistZones(
-          Object.fromEntries(
-            Object.values(next).map((c) => [c.key, c.zoneId]),
-          ),
-        )
-        return next
-      })
-    },
-    [persistZones],
   )
 
   /* -------------------------- auto-start --------------------------- */
@@ -452,15 +432,60 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
 
   /* ------------------------ detection loop ------------------------- */
 
-  const resolveCameraCoords = useCallback(
-    (cam: CameraRuntime): [number, number] => {
-      if (cam.zoneId !== '') {
-        const z = zones.find((z) => z.id === cam.zoneId)
-        if (z) return [z.centerLat, z.centerLon]
+  const checkForFall = useCallback(
+    async (cam: CameraRuntime, detections: cocoSsd.DetectedObject[], now: number) => {
+      const person = detections.find((d) => d.class === 'person' && d.score >= MIN_CONFIDENCE)
+      const history =
+        fallHistoryRef.current[cam.key] ?? (fallHistoryRef.current[cam.key] = [])
+
+      if (!person) {
+        // Lost the person — any future reappearance should start a fresh baseline.
+        fallHistoryRef.current[cam.key] = []
+        return
       }
-      return FALLBACK_COORDS
+
+      const [, , width, height] = person.bbox
+      const ratio = width > 0 ? height / width : 0
+      history.push({ ratio, t: now })
+      while (history.length > 0 && now - history[0].t > FALL_WINDOW_MS) history.shift()
+      if (history.length < 2) return
+
+      const priorRatio = history[0].ratio
+      const spanMs = now - history[0].t
+      const lastFallAt = lastFallPostedRef.current[cam.key] ?? 0
+
+      const looksLikeAFall =
+        priorRatio >= FALL_UPRIGHT_RATIO &&
+        ratio <= FALL_PRONE_RATIO &&
+        spanMs >= FALL_MIN_SPAN_MS &&
+        now - lastFallAt > FALL_POST_COOLDOWN_MS
+      if (!looksLikeAFall) return
+
+      lastFallPostedRef.current[cam.key] = now
+      try {
+        const [lat, lon, elevationM] = currentCoords()
+        await pushWebcamEvent({
+          cameraId: cam.id,
+          eventType: 'ANOMALY',
+          label: 'person_fallen',
+          confidence: Number(person.score.toFixed(3)),
+          latitude: lat,
+          longitude: lon,
+          elevationM,
+          rawPayload: {
+            source: 'phone_hls',
+            model: 'coco-ssd-fall-heuristic',
+            aspectRatioBefore: Number(priorRatio.toFixed(3)),
+            aspectRatioAfter: Number(ratio.toFixed(3)),
+            spanMs,
+            cameraKey: cam.key,
+          },
+        })
+      } catch (err) {
+        console.warn(`LiveCameras: fall push failed for ${cam.key}`, err)
+      }
     },
-    [zones],
+    [currentCoords],
   )
 
   const detectTick = useCallback(async () => {
@@ -496,6 +521,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
 
       // Forward relevant detections to the backend.
       const now = Date.now()
+      await checkForFall(cam, detections, now)
       const camMap =
         lastPostedRef.current[cam.key] ?? (lastPostedRef.current[cam.key] = new Map())
       for (const d of detections) {
@@ -506,8 +532,8 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
         if (now - lastSent < POST_COOLDOWN_MS) continue
         camMap.set(d.class, now)
 
-        const [lat, lon] = resolveCameraCoords(cam)
         try {
+          const [lat, lon, elevationM] = currentCoords()
           await pushWebcamEvent({
             cameraId: cam.id,
             eventType: known.type,
@@ -515,7 +541,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
             confidence: Number(d.score.toFixed(3)),
             latitude: lat,
             longitude: lon,
-            elevationM: 0,
+            elevationM,
             rawPayload: {
               source: 'phone_hls',
               model: 'coco-ssd',
@@ -535,7 +561,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     } finally {
       detectingRef.current = false
     }
-  }, [resolveCameraCoords, updateCamera])
+  }, [updateCamera, checkForFall, currentCoords])
 
   useEffect(() => {
     if (detectIntervalRef.current != null) {
@@ -569,11 +595,10 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     () => ({
       cameras: camerasList,
       zones,
-      setCameraZoneId,
       setCameraEnabled,
       getVideoElement,
     }),
-    [camerasList, zones, setCameraZoneId, setCameraEnabled, getVideoElement],
+    [camerasList, zones, setCameraEnabled, getVideoElement],
   )
 
   return (

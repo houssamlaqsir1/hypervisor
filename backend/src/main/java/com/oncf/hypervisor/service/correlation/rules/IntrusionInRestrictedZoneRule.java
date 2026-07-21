@@ -29,7 +29,10 @@ import java.util.Set;
  * zone — unauthorised intrusion.
  *
  * <ul>
- *     <li>Severity: HIGH normally, CRITICAL when confidence ≥ 0.9 (clear identification)</li>
+ *     <li>Severity is graded on detection confidence, above the
+ *     {@code high-confidence-threshold} gate (0.7 by default):
+ *     MEDIUM below 0.8 (borderline — worth a look), HIGH below 0.9,
+ *     CRITICAL at 0.9+ (clear identification)</li>
  *     <li>Per-camera × zone cooldown of 2 min so a stationary intruder fires once, not every 4 s</li>
  *     <li>Animals in a RESTRICTED zone don't go through this rule (handled by
  *         {@link ObjectOnTrackRule} when on a track, or ignored elsewhere)</li>
@@ -42,6 +45,7 @@ public class IntrusionInRestrictedZoneRule implements CorrelationRule {
 
     private static final Set<CameraEventType> INTRUSION_TYPES =
             Set.of(CameraEventType.HUMAN_DETECTED, CameraEventType.INTRUSION);
+    private static final double HIGH_CONFIDENCE = 0.8;
     private static final double CRITICAL_CONFIDENCE = 0.9;
 
     private final CorrelationProperties props;
@@ -74,9 +78,14 @@ public class IntrusionInRestrictedZoneRule implements CorrelationRule {
 
     private AlertDraft buildAlert(CameraEvent e, Zone z) {
         double conf = e.getConfidence() != null ? e.getConfidence() : 0.0;
-        AlertSeverity severity = conf >= CRITICAL_CONFIDENCE
-                ? AlertSeverity.CRITICAL
-                : AlertSeverity.HIGH;
+        AlertSeverity severity;
+        if (conf >= CRITICAL_CONFIDENCE) {
+            severity = AlertSeverity.CRITICAL;
+        } else if (conf >= HIGH_CONFIDENCE) {
+            severity = AlertSeverity.HIGH;
+        } else {
+            severity = AlertSeverity.MEDIUM;
+        }
 
         String who = CameraClassTaxonomy.display(e);
         String msg = String.format(

@@ -17,3 +17,18 @@ export function listAlerts(params: {
 export function getAlertStats(): Promise<AlertStats> {
   return api.get<AlertStats>('/alerts/stats')
 }
+
+export function acknowledgeAlert(
+  id: number,
+  operator?: string,
+): Promise<Alert> {
+  return api.post<Alert>(`/alerts/${id}/acknowledge`, { operator })
+}
+
+export function resolveAlert(
+  id: number,
+  note?: string,
+  operator?: string,
+): Promise<Alert> {
+  return api.post<Alert>(`/alerts/${id}/resolve`, { operator, note })
+}

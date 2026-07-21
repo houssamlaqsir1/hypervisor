@@ -18,6 +18,8 @@ type LiveAlertsContextValue = {
   alerts: Alert[]
   /** Merge server-fetched alerts into the live list (deduped by id). */
   seedAlerts: (next: Alert[]) => void
+  /** Replace one alert in the live list by id (e.g. after acknowledge/resolve). */
+  updateAlert: (next: Alert) => void
   connectionState: ConnectionState
 }
 
@@ -45,6 +47,12 @@ export function LiveAlertsProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const updateAlert = useCallback((next: Alert) => {
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === next.id ? next : a)),
+    )
+  }, [])
+
   useEffect(() => {
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL) as unknown as WebSocket,
@@ -57,7 +65,11 @@ export function LiveAlertsProvider({ children }: { children: ReactNode }) {
           try {
             const alert = JSON.parse(msg.body) as Alert
             setAlerts((prev) => {
-              if (prev.some((a) => a.id === alert.id)) return prev
+              // Re-broadcast of an existing alert (status change) → replace
+              // it in place; a genuinely new alert → prepend.
+              if (prev.some((a) => a.id === alert.id)) {
+                return prev.map((a) => (a.id === alert.id ? alert : a))
+              }
               return [alert, ...prev].slice(0, 500)
             })
           } catch (e) {
@@ -75,8 +87,8 @@ export function LiveAlertsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ alerts, seedAlerts, connectionState }),
-    [alerts, seedAlerts, connectionState],
+    () => ({ alerts, seedAlerts, updateAlert, connectionState }),
+    [alerts, seedAlerts, updateAlert, connectionState],
   )
 
   return (

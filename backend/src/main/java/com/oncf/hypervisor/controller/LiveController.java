@@ -3,11 +3,13 @@ package com.oncf.hypervisor.controller;
 import com.oncf.hypervisor.domain.Zone;
 import com.oncf.hypervisor.domain.enums.CameraEventType;
 import com.oncf.hypervisor.dto.CameraEventRequest;
+import com.oncf.hypervisor.dto.CameraPositionRequest;
 import com.oncf.hypervisor.dto.SigEventRequest;
 import com.oncf.hypervisor.exception.NotFoundException;
 import com.oncf.hypervisor.repository.ZoneRepository;
 import com.oncf.hypervisor.service.CameraEventService;
 import com.oncf.hypervisor.service.SigEventService;
+import com.oncf.hypervisor.service.live.LivePositionService;
 import com.oncf.hypervisor.service.live.LiveStatusService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -58,10 +60,41 @@ public class LiveController {
     private final CameraEventService cameraEventService;
     private final SigEventService sigEventService;
     private final ZoneRepository zoneRepository;
+    private final LivePositionService livePositionService;
 
     @GetMapping("/status")
     public LiveStatusService.Snapshot status() {
         return status.snapshot();
+    }
+
+    /**
+     * Reports a handheld/mobile camera's own live GPS position, independent
+     * of whatever device is viewing the dashboard. {@link
+     * com.oncf.hypervisor.service.CameraEventService} consults this for any
+     * camera that isn't a fixed installation in the registry.
+     *
+     * <p>Meant to be hit by a background location-reporting app on the
+     * phone itself (e.g. GPSLogger's "Custom URL" logging target, which
+     * does a plain GET with placeholder substitution) — not a browser tab,
+     * so there's no page permission prompt in this app's UI at all; the
+     * phone's own location permission is granted once, natively, in that
+     * app's settings.
+     */
+    @GetMapping("/camera-position")
+    public ResponseEntity<Void> cameraPositionGet(
+            @RequestParam String cameraId,
+            @RequestParam double latitude,
+            @RequestParam double longitude,
+            @RequestParam(required = false) Double elevationM) {
+        livePositionService.report(cameraId, latitude, longitude, elevationM);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Same semantics as the GET version, for callers that prefer a JSON body. */
+    @PostMapping("/camera-position")
+    public ResponseEntity<Void> cameraPositionPost(@Valid @RequestBody CameraPositionRequest req) {
+        livePositionService.report(req.cameraId(), req.latitude(), req.longitude(), req.elevationM());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/webcam")

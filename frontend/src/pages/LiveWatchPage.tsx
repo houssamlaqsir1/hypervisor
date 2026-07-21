@@ -72,7 +72,6 @@ export function LiveWatchPage() {
   const {
     cameras,
     zones,
-    setCameraZoneId,
     setCameraEnabled,
     getVideoElement,
   } = useLiveCameras()
@@ -402,22 +401,9 @@ export function LiveWatchPage() {
                     />{' '}
                     enabled
                   </label>
-                  <select
-                    value={c.zoneId}
-                    onChange={(e) =>
-                      setCameraZoneId(
-                        c.key,
-                        e.target.value ? Number(e.target.value) : '',
-                      )
-                    }
-                  >
-                    <option value="">(use my GPS)</option>
-                    {zones.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.name} — {z.type}
-                      </option>
-                    ))}
-                  </select>
+                  <span className="muted small" title="Configured once when the camera was registered — not picked here.">
+                    location: fixed at registration
+                  </span>
                 </div>
               </div>
             ))}

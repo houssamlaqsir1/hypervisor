@@ -1,6 +1,7 @@
 package com.oncf.hypervisor.domain;
 
 import com.oncf.hypervisor.domain.enums.AlertSeverity;
+import com.oncf.hypervisor.domain.enums.AlertStatus;
 import com.oncf.hypervisor.domain.enums.AlertType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -67,4 +68,26 @@ public class Alert {
 
     @Column(name = "dispatched_at")
     private Instant dispatchedAt;
+
+    /** Operator workflow state (report §3.3.3). Defaults to NEW at creation. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    @Builder.Default
+    private AlertStatus status = AlertStatus.NEW;
+
+    @Column(name = "acknowledged_at")
+    private Instant acknowledgedAt;
+
+    @Column(name = "acknowledged_by", length = 64)
+    private String acknowledgedBy;
+
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
+
+    @Column(name = "resolved_by", length = 64)
+    private String resolvedBy;
+
+    /** Free-text note the operator leaves when closing the alert. */
+    @Column(name = "resolution_note", columnDefinition = "text")
+    private String resolutionNote;
 }

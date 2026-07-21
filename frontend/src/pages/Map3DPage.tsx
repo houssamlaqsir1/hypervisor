@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   BillboardGraphics,
   Entity,
@@ -121,6 +122,7 @@ function SyncCesiumViewerState({ onViewer }: { onViewer: (v: CesiumViewer | null
 
 export function Map3DPage() {
   const { alerts, seedAlerts } = useLiveAlertsContext()
+  const [searchParams] = useSearchParams()
   const [scene, setScene] = useState<Sig3dResponse | null>(null)
   const viewerRef = useRef<CesiumComponentRef<CesiumViewer>>(null)
   const [viewer, setViewer] = useState<CesiumViewer | null>(null)
@@ -132,6 +134,13 @@ export function Map3DPage() {
   const [showTunnels, setShowTunnels] = useState(true)
   const [showBridges, setShowBridges] = useState(true)
   const [showZones, setShowZones] = useState(true)
+  /**
+   * OSM Buildings is a plain grey/white extruded-footprint tileset — no
+   * textures. Zoomed in over satellite imagery it reads as flat white
+   * blocks covering real detail rather than "3D buildings", so default it
+   * off and let the operator turn it on when they actually want massing.
+   */
+  const [showBuildings, setShowBuildings] = useState(false)
   const [showAlerts, setShowAlerts] = useState(true)
   const [showFusionLinks, setShowFusionLinks] = useState(true)
   const [windowMinutes, setWindowMinutes] = useState(30)
@@ -171,6 +180,7 @@ export function Map3DPage() {
       setTerrainProvider(terrain)
       const osmBuildings = await createOsmBuildingsAsync()
       if (disposed) return
+      osmBuildings.show = showBuildings
       v.scene.primitives.add(osmBuildings)
       setBuildings(osmBuildings)
     })()
@@ -180,7 +190,14 @@ export function Map3DPage() {
         v.scene.primitives.remove(buildings)
       }
     }
+    // showBuildings is applied by the effect below once the tileset exists;
+    // it's intentionally not a dependency here so this only runs once per viewer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewer, buildings])
+
+  useEffect(() => {
+    if (buildings) buildings.show = showBuildings
+  }, [buildings, showBuildings])
 
   const flyToPlace = useCallback(
     (p: MapSearchPick) => {
@@ -240,6 +257,26 @@ export function Map3DPage() {
     flyToPlace(pendingPick)
     setPendingPick(null)
   }, [viewer, pendingPick, flyToPlace])
+
+  /**
+   * Deep-link support: an alert card elsewhere in the app (dashboard,
+   * history) links here as `/map3d?lat=..&lon=..` so clicking it zooms
+   * straight to where the alert actually happened, instead of just
+   * switching pages and leaving the operator to hunt for it on the globe.
+   */
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return
+    const latParam = searchParams.get('lat')
+    const lonParam = searchParams.get('lon')
+    if (latParam == null || lonParam == null) return
+    const lat = Number(latParam)
+    const lon = Number(lonParam)
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return
+    viewer.camera.flyTo({
+      destination: Cartesian3.fromDegrees(lon, lat, 1200),
+      duration: 1.5,
+    })
+  }, [viewer, searchParams])
 
   const pinDataUrls = useMemo(() => {
     const pb = new PinBuilder()
@@ -676,6 +713,14 @@ export function Map3DPage() {
                       onChange={(e) => setShowZones(e.target.checked)}
                     />{' '}
                     Zones
+                  </label>
+                  <label title="Plain grey building footprints from OSM — off by default since it hides imagery detail when zoomed in.">
+                    <input
+                      type="checkbox"
+                      checked={showBuildings}
+                      onChange={(e) => setShowBuildings(e.target.checked)}
+                    />{' '}
+                    3D buildings
                   </label>
                   <label>
                     <input

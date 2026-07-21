@@ -1,6 +1,7 @@
 package com.oncf.hypervisor.dto;
 
 import com.oncf.hypervisor.domain.enums.AlertSeverity;
+import com.oncf.hypervisor.domain.enums.AlertStatus;
 import com.oncf.hypervisor.domain.enums.AlertType;
 
 import java.time.Instant;
@@ -25,5 +26,11 @@ public record AlertDto(
         Map<String, Object> details,
         Instant createdAt,
         boolean dispatched,
-        Instant dispatchedAt
+        Instant dispatchedAt,
+        AlertStatus status,
+        Instant acknowledgedAt,
+        String acknowledgedBy,
+        Instant resolvedAt,
+        String resolvedBy,
+        String resolutionNote
 ) {}

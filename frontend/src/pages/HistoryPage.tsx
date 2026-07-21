@@ -1,11 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { listAlerts } from '../api/alerts'
-import type { Alert, AlertSeverity } from '../types/api'
+import type { Alert, AlertSeverity, AlertStatus } from '../types/api'
 
 const SEVS: ('' | AlertSeverity)[] = ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+const STATUSES: ('' | AlertStatus)[] = ['', 'NEW', 'ACKNOWLEDGED', 'RESOLVED']
+const STATUS_LABEL: Record<AlertStatus, string> = {
+  NEW: 'New',
+  ACKNOWLEDGED: 'Acknowledged',
+  RESOLVED: 'Resolved',
+}
 
 export function HistoryPage() {
+  const navigate = useNavigate()
   const [severity, setSeverity] = useState<'' | AlertSeverity>('')
+  const [status, setStatus] = useState<'' | AlertStatus>('')
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -15,6 +24,11 @@ export function HistoryPage() {
       .then(setAlerts)
       .finally(() => setLoading(false))
   }, [severity])
+
+  const visible = useMemo(
+    () => (status ? alerts.filter((a) => a.status === status) : alerts),
+    [alerts, status],
+  )
 
   return (
     <>
@@ -35,29 +49,66 @@ export function HistoryPage() {
               </option>
             ))}
           </select>
+          <label style={{ marginLeft: 16 }}>Status</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value as AlertStatus | '')}>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s ? STATUS_LABEL[s] : 'All'}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       {loading && <p className="muted">Loading…</p>}
-      {!loading && alerts.length === 0 && <p className="muted">No alerts match.</p>}
+      {!loading && visible.length === 0 && <p className="muted">No alerts match.</p>}
 
       <div className="timeline">
-        {alerts.map((a) => (
+        {visible.map((a) => (
           <div key={a.id} className={`timeline-item sev-${a.severity}`}>
             <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <b>
                   [{a.severity}] {a.type.replace('_', ' ')}
                 </b>
-                <time className="muted">
-                  {new Date(a.createdAt).toLocaleString()}
-                </time>
+                <span style={{ display: 'flex', gap: 8, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  <span className={`alert-status-badge status-${a.status}`}>
+                    {STATUS_LABEL[a.status]}
+                  </span>
+                  <time className="muted">
+                    {new Date(a.createdAt).toLocaleString()}
+                  </time>
+                </span>
               </div>
               <div style={{ marginTop: 6 }}>{a.message}</div>
               {a.zoneName && (
                 <div className="muted" style={{ marginTop: 4 }}>
                   Zone: {a.zoneName}
                 </div>
+              )}
+              {a.status === 'ACKNOWLEDGED' && a.acknowledgedAt && (
+                <div className="muted" style={{ marginTop: 4, fontStyle: 'italic' }}>
+                  Acknowledged by {a.acknowledgedBy ?? 'operator'} ·{' '}
+                  {new Date(a.acknowledgedAt).toLocaleString()}
+                </div>
+              )}
+              {a.status === 'RESOLVED' && a.resolvedAt && (
+                <div className="muted" style={{ marginTop: 4, fontStyle: 'italic' }}>
+                  Resolved by {a.resolvedBy ?? 'operator'} ·{' '}
+                  {new Date(a.resolvedAt).toLocaleString()}
+                  {a.resolutionNote ? ` — “${a.resolutionNote}”` : ''}
+                </div>
+              )}
+              {a.latitude != null && a.longitude != null && (
+                <button
+                  type="button"
+                  className="btn secondary btn-sm"
+                  style={{ marginTop: 8 }}
+                  title="Fly to where this alert happened on the 3D map"
+                  onClick={() => navigate(`/map3d?lat=${a.latitude}&lon=${a.longitude}`)}
+                >
+                  🗺 View on 3D map
+                </button>
               )}
             </div>
           </div>

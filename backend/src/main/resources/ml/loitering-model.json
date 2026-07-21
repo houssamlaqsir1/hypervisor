@@ -1,0 +1,14 @@
+{
+  "modelVersion" : "loitering-v1-synthetic",
+  "trainedAt" : "2026-07-07T10:43:39.383013800Z",
+  "featureNames" : [ "dwellTimeSec", "maxRadiusM", "netDisplacementM", "avgSpeedMps", "wanderRatio" ],
+  "means" : [ 314.371, 37.77699067595153, 63.28192107667774, 0.8013302737179543, 0.523990372492653 ],
+  "stds" : [ 267.1139944399522, 45.522543756644446, 79.41289926212748, 0.8495122660822487, 0.3501150508247308 ],
+  "weights" : [ 1.2735640031443687, -0.6995423731047683, -0.7518917317659946, -1.2379601570294962, -1.6518294720359847 ],
+  "bias" : -0.2564280506420722,
+  "recommendedThreshold" : 0.6,
+  "trainSamples" : 3000,
+  "testAccuracy" : 0.99875,
+  "testPrecision" : 1.0,
+  "testRecall" : 0.9975
+}

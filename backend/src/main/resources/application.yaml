@@ -57,6 +57,16 @@ hypervisor:
     cooldown-object-on-track-sec: 120
     cooldown-escalation-sec: 300
     cooldown-station-activity-sec: 900
+    # Loitering behavior model: how far back it looks, and how much signal
+    # it needs before trusting a verdict.
+    loitering-window-minutes: 20
+    loitering-min-events: 4
+    loitering-min-dwell-sec: 90
+    cooldown-loitering-sec: 600
+    # Real-hazard signals (not time-based): a detected fall, or a person/animal
+    # closing in on a live track without being on it yet.
+    cooldown-fall-sec: 120
+    cooldown-track-proximity-sec: 180
   live:
     opensky:
       enabled: ${OPENSKY_ENABLED:true}

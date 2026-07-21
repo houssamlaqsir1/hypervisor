@@ -27,13 +27,16 @@ import java.util.Map;
  * Rule 2: anything class-relevant detected inside a {@link ZoneType#TRACK}
  * zone — collision / derailment risk.
  *
- * <p>Severity is class-aware so the alert log mirrors how an operator
- * would react in real life:
+ * <p>Severity is class- and confidence-aware so the alert log mirrors how
+ * an operator would react in real life:
  * <ul>
- *     <li><b>Person / Animal / Vehicle on track</b> → {@link AlertSeverity#CRITICAL}
+ *     <li><b>Person / Animal / Vehicle on track</b> → {@link AlertSeverity#HIGH}
+ *     below {@value #CRITICAL_CONFIDENCE} confidence (needs visual
+ *     confirmation), {@link AlertSeverity#CRITICAL} at/above it
  *     (immediate stop the train)</li>
- *     <li><b>Luggage / left object on track</b> → {@link AlertSeverity#HIGH}
- *     (slow approach, inspect)</li>
+ *     <li><b>Luggage / left object on track</b> → {@link AlertSeverity#MEDIUM}
+ *     below {@value #HIGH_CONFIDENCE} confidence, {@link AlertSeverity#HIGH}
+ *     above it (slow approach, inspect)</li>
  *     <li>Other COCO classes (chair, cup, tv, …) are ignored — pure noise.</li>
  * </ul>
  *
@@ -46,6 +49,8 @@ import java.util.Map;
 public class ObjectOnTrackRule implements CorrelationRule {
 
     private static final double MIN_CONFIDENCE = 0.55;
+    private static final double HIGH_CONFIDENCE = 0.7;
+    private static final double CRITICAL_CONFIDENCE = 0.85;
 
     private final CorrelationProperties props;
     private final AlertRepository alertRepository;
@@ -74,27 +79,36 @@ public class ObjectOnTrackRule implements CorrelationRule {
         double conf = e.getConfidence() != null ? e.getConfidence() : 0.0;
         String display = CameraClassTaxonomy.display(e);
 
+        boolean criticalConfidence = conf >= CRITICAL_CONFIDENCE;
+        boolean highConfidence = conf >= HIGH_CONFIDENCE;
+
         AlertSeverity severity;
         String tail;
         switch (cat) {
             case PERSON -> {
-                severity = AlertSeverity.CRITICAL;
-                tail = "immediate collision risk — STOP TRAIN";
+                severity = criticalConfidence ? AlertSeverity.CRITICAL : AlertSeverity.HIGH;
+                tail = criticalConfidence
+                        ? "immediate collision risk — STOP TRAIN"
+                        : "possible person on track — needs visual confirmation";
             }
             case ANIMAL -> {
-                severity = AlertSeverity.CRITICAL;
-                tail = "collision / derailment risk";
+                severity = criticalConfidence ? AlertSeverity.CRITICAL : AlertSeverity.HIGH;
+                tail = criticalConfidence
+                        ? "collision / derailment risk"
+                        : "possible animal on track — needs visual confirmation";
             }
             case VEHICLE -> {
-                severity = AlertSeverity.CRITICAL;
-                tail = "track blocked — emergency stop required";
+                severity = criticalConfidence ? AlertSeverity.CRITICAL : AlertSeverity.HIGH;
+                tail = criticalConfidence
+                        ? "track blocked — emergency stop required"
+                        : "possible obstruction — needs visual confirmation";
             }
             case LUGGAGE -> {
-                severity = AlertSeverity.HIGH;
+                severity = highConfidence ? AlertSeverity.HIGH : AlertSeverity.MEDIUM;
                 tail = "abandoned object on rails — slow approach & inspect";
             }
             default -> {
-                severity = AlertSeverity.HIGH;
+                severity = highConfidence ? AlertSeverity.HIGH : AlertSeverity.MEDIUM;
                 tail = "object on rails — inspect";
             }
         }

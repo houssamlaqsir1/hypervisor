@@ -5,6 +5,9 @@ export type AlertType =
   | 'ESCALATION'
   | 'ANOMALY'
   | 'FUSION'
+  | 'LOITERING'
+  | 'FALL_DETECTED'
+  | 'TRACK_PROXIMITY'
   | 'MANUAL'
 export type CameraEventType =
   | 'HUMAN_DETECTED'
@@ -53,6 +56,8 @@ export interface AlertDetails {
   [key: string]: unknown
 }
 
+export type AlertStatus = 'NEW' | 'ACKNOWLEDGED' | 'RESOLVED'
+
 export interface Alert {
   id: number
   severity: AlertSeverity
@@ -68,6 +73,12 @@ export interface Alert {
   createdAt: string
   dispatched: boolean
   dispatchedAt: string | null
+  status: AlertStatus
+  acknowledgedAt: string | null
+  acknowledgedBy: string | null
+  resolvedAt: string | null
+  resolvedBy: string | null
+  resolutionNote: string | null
 }
 
 export interface Zone {

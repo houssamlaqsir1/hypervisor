@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { listAlerts, getAlertStats } from '../api/alerts'
 import type { AlertStats } from '../types/api'
 import { AlertRow } from '../components/AlertRow'
@@ -51,6 +51,13 @@ export function DashboardPage() {
   const [stats, setStats] = useState<AlertStats | null>(null)
   const [loading, setLoading] = useState(true)
   const { alerts, seedAlerts } = useLiveAlertsContext()
+  const didInitialLoad = useRef(false)
+
+  const refreshStats = useCallback(() => {
+    getAlertStats()
+      .then(setStats)
+      .catch((e) => console.error('Dashboard stats refresh failed', e))
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -68,18 +75,25 @@ export function DashboardPage() {
     return () => { active = false }
   }, [seedAlerts])
 
-  const liveStats = useMemo<AlertStats | null>(() => {
-    if (!stats) return null
-    const bySeverity: AlertStats['bySeverity'] = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 }
-    for (const a of alerts) {
-      if (a.severity in bySeverity) bySeverity[a.severity] += 1
+  /**
+   * The stat cards must reflect the backend's real counts, not the local
+   * alert list — that list is capped (only the most recent ~50-500, reset
+   * on every reload), so deriving "total"/severity counts from it made the
+   * dashboard snap back down to ~50 any time the true count was higher.
+   * Instead, re-pull the real totals whenever a new alert streams in live.
+   */
+  useEffect(() => {
+    if (loading) return
+    if (!didInitialLoad.current) {
+      didInitialLoad.current = true
+      return
     }
-    return { total: alerts.length, bySeverity }
-  }, [alerts, stats])
+    refreshStats()
+  }, [alerts.length, loading, refreshStats])
 
   function getValue(key: typeof STAT_CARDS[number]['key']) {
-    if (key === 'total') return liveStats?.total ?? stats?.total ?? 0
-    return liveStats?.bySeverity?.[key] ?? stats?.bySeverity?.[key] ?? 0
+    if (key === 'total') return stats?.total ?? 0
+    return stats?.bySeverity?.[key] ?? 0
   }
 
   return (

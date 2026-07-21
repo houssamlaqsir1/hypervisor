@@ -367,7 +367,7 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: 14px;
   padding: 14px 18px;
   display: grid;
-  grid-template-columns: 96px 1fr auto;
+  grid-template-columns: 96px 1fr auto auto;
   gap: 16px;
   align-items: center;
   box-shadow: 0 1px 4px rgba(37,99,235,0.05);
@@ -412,6 +412,59 @@ button { font-family: inherit; cursor: pointer; }
 .alert-row .message strong { font-size: 14px; font-weight: 600; color: var(--text); }
 .alert-row .message small  { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
 .alert-row time            { color: var(--text-light); font-size: 12px; white-space: nowrap; }
+
+/* ─── alert lifecycle (acknowledge / resolve) ─────────── */
+.alert-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.alert-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.alert-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.alert-status-badge.status-NEW          { background: var(--danger-soft); color: var(--danger); }
+.alert-status-badge.status-ACKNOWLEDGED { background: var(--warn-soft);   color: var(--warn); }
+.alert-status-badge.status-RESOLVED     { background: #dcfce7;            color: #16a34a; }
+
+/* A resolved alert fades slightly so the console visually settles. */
+.alert-row.status-RESOLVED { opacity: 0.72; }
+
+.alert-lifecycle { color: var(--text-light) !important; font-style: italic; margin-top: 4px; }
+
+.alert-resolve-note {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.alert-resolve-note input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.dark-mode .alert-status-badge.status-RESOLVED { background: rgba(22,163,74,0.2); color: #4ade80; }
 
 /* ─── Fusion chips ────────────────────────────────────── */
 .alert-fusion-chips {
@@ -512,8 +565,6 @@ button { font-family: inherit; cursor: pointer; }
   border: 1px solid var(--border);
   box-shadow: 0 2px 16px rgba(37,99,235,0.08);
 }
-
-.leaflet-container { background: #dde8f5; }
 
 /* ─── 3D map ──────────────────────────────────────────── */
 .map3d-page { min-width: 0; }
@@ -1186,8 +1237,6 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 14px; }
 .dark-mode .live-camera-row {
   box-shadow: 0 2px 12px rgba(0,0,0,0.4);
 }
-
-.dark-mode .leaflet-container { background: #080d18; }
 
 .dark-mode .map3d-hud-panel {
   background: rgba(8,13,24,0.88);

@@ -16,6 +16,10 @@ import org.springframework.stereotype.Component;
  *
  * This runner drops every CHECK constraint on alerts.type and recreates it
  * with the full enum at every boot. Idempotent and cheap.
+ *
+ * <p>Whenever a new {@link com.oncf.hypervisor.domain.enums.AlertType} value
+ * is added (e.g. LOITERING), it must also be added to {@link #CREATE_CONSTRAINT}
+ * below or inserts of that type will fail at runtime.
  */
 @Component
 @RequiredArgsConstructor
@@ -34,7 +38,8 @@ public class AlertTypeConstraintPatch implements ApplicationRunner {
     private static final String CREATE_CONSTRAINT = """
             ALTER TABLE alerts
                 ADD CONSTRAINT alerts_type_check
-                CHECK (type IN ('INTRUSION', 'OBJECT_ON_TRACK', 'ESCALATION', 'ANOMALY', 'FUSION', 'MANUAL'))
+                CHECK (type IN ('INTRUSION', 'OBJECT_ON_TRACK', 'ESCALATION', 'ANOMALY', 'FUSION', 'LOITERING',
+                                'FALL_DETECTED', 'TRACK_PROXIMITY', 'MANUAL'))
             """;
 
     private final JdbcTemplate jdbc;
@@ -48,7 +53,7 @@ public class AlertTypeConstraintPatch implements ApplicationRunner {
                 log.info("Dropped legacy alerts CHECK constraint '{}'", name);
             }
             jdbc.execute(CREATE_CONSTRAINT);
-            log.info("alerts_type_check refreshed with FUSION + MANUAL");
+            log.info("alerts_type_check refreshed with FUSION + LOITERING + FALL_DETECTED + TRACK_PROXIMITY + MANUAL");
         } catch (Exception ex) {
             log.warn("Could not refresh alerts_type_check (this is fatal for FUSION inserts): {}", ex.getMessage());
         }

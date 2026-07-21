@@ -23,7 +23,19 @@ public record CorrelationProperties(
         /** Cooldown (seconds) for escalation alerts on the same camera/zone. */
         int cooldownEscalationSec,
         /** Cooldown (seconds) for "station activity" heartbeat alerts. */
-        int cooldownStationActivitySec
+        int cooldownStationActivitySec,
+        /** How far back (minutes) the loitering behavior model looks for a track's history. */
+        int loiteringWindowMinutes,
+        /** Minimum number of camera events for the same (camera, label) required before scoring. */
+        int loiteringMinEvents,
+        /** Minimum dwell time (seconds) spanned by the track before scoring — avoids judging a fly-by. */
+        int loiteringMinDwellSec,
+        /** Cooldown (seconds) between two loitering alerts on the same camera/zone/label. */
+        int cooldownLoiteringSec,
+        /** Cooldown (seconds) between two fall-detection alerts on the same camera/zone/label. */
+        int cooldownFallSec,
+        /** Cooldown (seconds) between two track-proximity alerts on the same camera/zone/label. */
+        int cooldownTrackProximitySec
 ) {
     public CorrelationProperties {
         if (escalationWindowMinutes <= 0) escalationWindowMinutes = 5;
@@ -36,5 +48,11 @@ public record CorrelationProperties(
         if (cooldownObjectOnTrackSec <= 0) cooldownObjectOnTrackSec = 120;
         if (cooldownEscalationSec <= 0) cooldownEscalationSec = 300;
         if (cooldownStationActivitySec <= 0) cooldownStationActivitySec = 900;
+        if (loiteringWindowMinutes <= 0) loiteringWindowMinutes = 20;
+        if (loiteringMinEvents <= 0) loiteringMinEvents = 4;
+        if (loiteringMinDwellSec <= 0) loiteringMinDwellSec = 90;
+        if (cooldownLoiteringSec <= 0) cooldownLoiteringSec = 600;
+        if (cooldownFallSec <= 0) cooldownFallSec = 120;
+        if (cooldownTrackProximitySec <= 0) cooldownTrackProximitySec = 180;
     }
 }

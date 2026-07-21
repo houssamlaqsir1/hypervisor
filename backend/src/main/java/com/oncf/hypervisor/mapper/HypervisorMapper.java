@@ -63,7 +63,13 @@ public class HypervisorMapper {
                 readJsonOrNull(a.getDetails()),
                 a.getCreatedAt(),
                 a.isDispatched(),
-                a.getDispatchedAt()
+                a.getDispatchedAt(),
+                a.getStatus() != null ? a.getStatus() : com.oncf.hypervisor.domain.enums.AlertStatus.NEW,
+                a.getAcknowledgedAt(),
+                a.getAcknowledgedBy(),
+                a.getResolvedAt(),
+                a.getResolvedBy(),
+                a.getResolutionNote()
         );
     }
 

@@ -1,6 +1,7 @@
 package com.oncf.hypervisor.repository;
 
 import com.oncf.hypervisor.domain.Zone;
+import com.oncf.hypervisor.domain.enums.ZoneType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +11,8 @@ import java.util.List;
 
 public interface ZoneRepository extends JpaRepository<Zone, Long> {
     Optional<Zone> findByName(String name);
+
+    List<Zone> findByType(ZoneType type);
 
     @Query(value = """
             SELECT * FROM zones z

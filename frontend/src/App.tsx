@@ -9,9 +9,6 @@ const DashboardPage = lazy(() =>
 const LiveWatchPage = lazy(() =>
   import('./pages/LiveWatchPage').then((m) => ({ default: m.LiveWatchPage })),
 )
-const MapPage = lazy(() =>
-  import('./pages/MapPage').then((m) => ({ default: m.MapPage })),
-)
 const Map3DPage = lazy(() =>
   import('./pages/Map3DPage').then((m) => ({ default: m.Map3DPage })),
 )
@@ -36,7 +33,6 @@ function App() {
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/live" element={<LiveWatchPage />} />
-            <Route path="/map" element={<MapPage />} />
             <Route path="/map3d" element={<Map3DPage />} />
             <Route path="/operations" element={<OperationsPage />} />
             <Route path="/history" element={<HistoryPage />} />
