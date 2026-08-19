@@ -1,0 +1,39 @@
+# MediaMTX configuration for the ONCF hypervisor.
+#
+# Larix on the phone pushes RTMP to  rtmp://<host>:1935/iphone
+# MediaMTX then re-publishes that same stream as:
+#   • RTSP  rtsp://mediamtx:8554/iphone   → consumed by the YOLOv8 detector
+#   • HLS   http://<host>:8888/iphone     → consumed by the browser preview
+#
+# One ingest, two consumers — the detector analyses the low-latency RTSP
+# feed while the operator watches the browser-friendly HLS one.
+
+logLevel: info
+
+# ── protocols ────────────────────────────────────────────────────────
+rtsp: yes
+rtspAddress: :8554
+
+rtmp: yes
+rtmpAddress: :1935
+
+hls: yes
+hlsAddress: :8888
+# The browser fetches HLS cross-origin from the frontend, so it needs CORS.
+hlsAllowOrigins: ['*']
+# Low-latency HLS keeps the operator preview close to real time.
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+
+webrtc: no
+srt: no
+
+# ── paths ────────────────────────────────────────────────────────────
+paths:
+  # The demo phone camera. `all_others` keeps additional cameras working
+  # without a config change — publish to any path and it just appears.
+  iphone:
+    source: publisher
+
+  all_others:

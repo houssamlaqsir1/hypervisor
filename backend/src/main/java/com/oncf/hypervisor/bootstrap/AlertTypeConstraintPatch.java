@@ -39,7 +39,8 @@ public class AlertTypeConstraintPatch implements ApplicationRunner {
             ALTER TABLE alerts
                 ADD CONSTRAINT alerts_type_check
                 CHECK (type IN ('INTRUSION', 'OBJECT_ON_TRACK', 'ESCALATION', 'ANOMALY', 'FUSION', 'LOITERING',
-                                'FALL_DETECTED', 'TRACK_PROXIMITY', 'MANUAL'))
+                                'FALL_DETECTED', 'TRACK_PROXIMITY', 'UNATTENDED_BAGGAGE', 'CROWD_DENSITY',
+                                'NIGHT_ACTIVITY', 'MANUAL'))
             """;
 
     private final JdbcTemplate jdbc;

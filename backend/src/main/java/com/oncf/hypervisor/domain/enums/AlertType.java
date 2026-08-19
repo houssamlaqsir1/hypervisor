@@ -13,5 +13,11 @@ public enum AlertType {
     FALL_DETECTED,
     /** A person/animal detected close to (but not inside) a TRACK zone's boundary — approaching danger. */
     TRACK_PROXIMITY,
+    /** Luggage that has stayed put with nobody around it — classic security concern. */
+    UNATTENDED_BAGGAGE,
+    /** Unusually many people in a station zone — platform overcrowding / crush risk. */
+    CROWD_DENSITY,
+    /** Activity during closed hours, when the site should be empty. */
+    NIGHT_ACTIVITY,
     MANUAL
 }

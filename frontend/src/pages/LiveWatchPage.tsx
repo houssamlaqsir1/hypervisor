@@ -15,30 +15,12 @@ import {
   useLiveCameras,
   type CameraRuntime,
 } from '../context/LiveCamerasContext'
+import { loadPrefs } from '../lib/prefs'
+import { useT } from '../lib/useT'
 
 type GpsState = 'idle' | 'starting' | 'running' | 'error'
 
 const STATUS_POLL_MS = 5000
-
-/**
- * COCO-SSD classes the provider treats as "relevant" — used here only to
- * color the overlay boxes (green for railway-relevant, grey otherwise).
- * Keep in sync with {@code RELEVANT_CLASSES} in {@link
- * '../context/LiveCamerasContext'}.
- */
-const RELEVANT_LABELS = new Set([
-  'person',
-  'bicycle',
-  'car',
-  'motorcycle',
-  'bus',
-  'truck',
-  'train',
-  'backpack',
-  'handbag',
-  'suitcase',
-  'dog',
-])
 
 function statusLabel(c: CameraRuntime): string {
   if (!c.enabled) return 'disabled'
@@ -69,6 +51,7 @@ function relativeAgeISO(iso: string | null | undefined): string {
 }
 
 export function LiveWatchPage() {
+  const t = useT()
   const {
     cameras,
     zones,
@@ -105,7 +88,12 @@ export function LiveWatchPage() {
     }
     let stream: MediaStream | null = null
     try {
-      stream = hidden.captureStream?.() ?? null
+      // captureStream() is widely supported but still absent from TS's
+      // HTMLVideoElement lib types, hence the narrow local cast.
+      const capturable = hidden as HTMLVideoElement & {
+        captureStream?: () => MediaStream
+      }
+      stream = capturable.captureStream?.() ?? null
     } catch (e) {
       console.warn('captureStream() unavailable on selected camera', e)
     }
@@ -117,8 +105,11 @@ export function LiveWatchPage() {
     }
   }, [selectedCamera, getVideoElement])
 
-  /* Redraw detection overlay on the preview canvas whenever the selected
-   * camera's lastDetections updates (provider sets it ~1 fps per camera). */
+  /* Keep the overlay canvas clear and correctly sized. Detection runs
+   * server-side in the YOLOv8 service now, so the browser never sees
+   * bounding boxes — there is nothing to draw here. The canvas is kept so
+   * the preview layout is unchanged and a future server-supplied overlay
+   * has somewhere to render. */
   useEffect(() => {
     const cam = selectedCamera
     const canvas = overlayCanvasRef.current
@@ -128,34 +119,13 @@ export function LiveWatchPage() {
     const h = hidden?.videoHeight || 480
     if (canvas.width !== w) canvas.width = w
     if (canvas.height !== h) canvas.height = h
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    if (cam.status !== 'running') return
-    ctx.font = '14px Inter, sans-serif'
-    for (const d of cam.lastDetections) {
-      const [x, y, bw, bh] = d.bbox
-      const known = RELEVANT_LABELS.has(d.class)
-      ctx.strokeStyle = known ? '#22c55e' : '#9aa7c2'
-      ctx.lineWidth = 2
-      ctx.strokeRect(x, y, bw, bh)
-      const label = `${d.class} ${(d.score * 100).toFixed(0)}%`
-      const tw = ctx.measureText(label).width + 10
-      ctx.fillStyle = known ? '#22c55e' : '#9aa7c2'
-      ctx.fillRect(x, y - 18, tw, 18)
-      ctx.fillStyle = '#0b1220'
-      ctx.fillText(label, x + 5, y - 5)
-    }
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
   }, [selectedCamera, getVideoElement])
 
   /* ---------------------------- aggregates -------------------------- */
 
   const activeCount = useMemo(
     () => cameras.filter((c) => c.enabled && c.status === 'running').length,
-    [cameras],
-  )
-  const totalPosted = useMemo(
-    () => cameras.reduce((acc, c) => acc + c.postedCount, 0),
     [cameras],
   )
 
@@ -214,6 +184,12 @@ export function LiveWatchPage() {
 
   const startGps = useCallback(() => {
     if (gpsState === 'running' || gpsState === 'starting') return
+    // Geolocation is consented to once, in Settings.
+    if (!loadPrefs().location_tracking) {
+      setGpsError('Location tracking is off — enable it in Settings first.')
+      setGpsState('error')
+      return
+    }
     if (!('geolocation' in navigator)) {
       setGpsError('Geolocation not supported in this browser')
       setGpsState('error')
@@ -271,18 +247,12 @@ export function LiveWatchPage() {
     <>
       <div className="page-header">
         <div>
-          <h2>Live Watch</h2>
-          <p>
-            Every enabled AI camera runs in the background as long as this app
-            is open in your browser — no <b>Start</b> click required. The
-            hypervisor receives detections, runs correlation, and emits alerts
-            for <b>all</b> of them in parallel. Open this tab on a NOC
-            monitor and the cameras will keep watching.
-          </p>
+          <h2>{t('live.title')}</h2>
+          <p>{t('live.subtitle')}</p>
           <p className="muted small" style={{ marginTop: 4 }}>
             <b>{activeCount}</b> camera{activeCount === 1 ? '' : 's'} live &middot;{' '}
-            <b>{totalPosted}</b> event{totalPosted === 1 ? '' : 's'} posted this
-            session
+            <b>{status?.webcamEventsTotal ?? 0}</b> detection
+            {status?.webcamEventsTotal === 1 ? '' : 's'} ingested
           </p>
         </div>
       </div>
@@ -341,18 +311,19 @@ export function LiveWatchPage() {
           {selectedCamera && (
             <div className="muted small" style={{ marginTop: 8 }}>
               <div>
-                Events posted from this camera:{' '}
-                <b>{selectedCamera.postedCount}</b> &middot; last AI hit:{' '}
-                <b>{relativeAgeMs(selectedCamera.lastDetectionAt)}</b>
+                Detections ingested: <b>{status?.webcamEventsTotal ?? 0}</b>{' '}
+                &middot; last detection:{' '}
+                <b>
+                  {relativeAgeMs(
+                    status?.lastWebcamEventAt
+                      ? Date.parse(status.lastWebcamEventAt)
+                      : null,
+                  )}
+                </b>
               </div>
-              {selectedCamera.lastDetections.length > 0 && (
-                <div>
-                  Last frame:{' '}
-                  {selectedCamera.lastDetections
-                    .map((d) => `${d.class} ${(d.score * 100).toFixed(0)}%`)
-                    .join(', ')}
-                </div>
-              )}
+              <div>
+                Analysed server-side by the YOLOv8 detector service.
+              </div>
             </div>
           )}
         </div>
@@ -381,11 +352,9 @@ export function LiveWatchPage() {
                 </div>
                 <div className="live-camera-row-stats muted small">
                   <span>
-                    last AI hit <b>{relativeAgeMs(c.lastDetectionAt)}</b>
+                    stream <b>{statusLabel(c)}</b>
                   </span>
-                  <span>
-                    events <b>{c.postedCount}</b>
-                  </span>
+                  <span>id <b>{c.id}</b></span>
                   {c.error && (
                     <span style={{ color: 'var(--danger)' }}>{c.error}</span>
                   )}

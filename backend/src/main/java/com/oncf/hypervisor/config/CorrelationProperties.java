@@ -35,7 +35,33 @@ public record CorrelationProperties(
         /** Cooldown (seconds) between two fall-detection alerts on the same camera/zone/label. */
         int cooldownFallSec,
         /** Cooldown (seconds) between two track-proximity alerts on the same camera/zone/label. */
-        int cooldownTrackProximitySec
+        int cooldownTrackProximitySec,
+
+        /* ── unattended baggage ── */
+        /** How long a bag must persist with nobody nearby before it counts as abandoned. */
+        int baggageUnattendedMinutes,
+        /** Minimum sightings of the bag over that period (guards against a one-frame fluke). */
+        int baggageMinSightings,
+        /** Cooldown (seconds) between two unattended-baggage alerts on the same camera/zone/label. */
+        int cooldownBaggageSec,
+
+        /* ── crowd density ── */
+        /** Window (minutes) over which person detections are counted for crowding. */
+        int crowdWindowMinutes,
+        /** Person detections in the window before a station counts as crowded. */
+        int crowdThreshold,
+        /** Cooldown (seconds) between two crowd alerts on the same camera/zone. */
+        int cooldownCrowdSec,
+
+        /* ── night activity ── */
+        /** Hour (local) when the "closed" period starts, e.g. 23. */
+        int nightStartHour,
+        /** Hour (local) when the "closed" period ends, e.g. 5. */
+        int nightEndHour,
+        /** IANA zone used to interpret those hours (ONCF operates in Africa/Casablanca). */
+        String nightZoneId,
+        /** Cooldown (seconds) between two night-activity alerts on the same camera/zone/label. */
+        int cooldownNightSec
 ) {
     public CorrelationProperties {
         if (escalationWindowMinutes <= 0) escalationWindowMinutes = 5;
@@ -47,12 +73,22 @@ public record CorrelationProperties(
         if (cooldownIntrusionSec <= 0) cooldownIntrusionSec = 120;
         if (cooldownObjectOnTrackSec <= 0) cooldownObjectOnTrackSec = 120;
         if (cooldownEscalationSec <= 0) cooldownEscalationSec = 300;
-        if (cooldownStationActivitySec <= 0) cooldownStationActivitySec = 900;
+        if (cooldownStationActivitySec <= 0) cooldownStationActivitySec = 120;
         if (loiteringWindowMinutes <= 0) loiteringWindowMinutes = 20;
         if (loiteringMinEvents <= 0) loiteringMinEvents = 4;
         if (loiteringMinDwellSec <= 0) loiteringMinDwellSec = 90;
         if (cooldownLoiteringSec <= 0) cooldownLoiteringSec = 600;
         if (cooldownFallSec <= 0) cooldownFallSec = 120;
         if (cooldownTrackProximitySec <= 0) cooldownTrackProximitySec = 180;
+        if (baggageUnattendedMinutes <= 0) baggageUnattendedMinutes = 5;
+        if (baggageMinSightings <= 0) baggageMinSightings = 3;
+        if (cooldownBaggageSec <= 0) cooldownBaggageSec = 600;
+        if (crowdWindowMinutes <= 0) crowdWindowMinutes = 2;
+        if (crowdThreshold <= 0) crowdThreshold = 25;
+        if (cooldownCrowdSec <= 0) cooldownCrowdSec = 300;
+        if (nightStartHour < 0 || nightStartHour > 23) nightStartHour = 23;
+        if (nightEndHour < 0 || nightEndHour > 23) nightEndHour = 5;
+        if (nightZoneId == null || nightZoneId.isBlank()) nightZoneId = "Africa/Casablanca";
+        if (cooldownNightSec <= 0) cooldownNightSec = 600;
     }
 }

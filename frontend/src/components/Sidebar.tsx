@@ -1,25 +1,39 @@
 import { NavLink } from 'react-router-dom'
 import type { ConnectionState } from '../context/LiveAlertsContext'
 import { useLiveCameras } from '../context/LiveCamerasContext'
+import { useAuth } from '../context/AuthContext'
+import type { Role } from '../types/api'
+import { useT } from '../lib/useT'
 
 interface Props {
   wsState: ConnectionState
 }
 
-const NAV = [
-  { to: '/', label: 'Dashboard', icon: '⊞', end: true },
-  { to: '/live', label: 'Live Watch', icon: '◉' },
-  { to: '/map3d', label: '3D Map', icon: '◈' },
-  { to: '/operations', label: 'Operations', icon: '⊛' },
-  { to: '/history', label: 'History', icon: '◷' },
-  { to: '/settings', label: 'Settings', icon: '⚙' },
+/**
+ * Each nav item optionally declares the minimum role required to see it.
+ * Labels are translation keys rather than text, so the sidebar follows the
+ * language switch like everything else.
+ */
+const NAV: { to: string; labelKey: string; icon: string; end?: boolean; min?: Role }[] = [
+  { to: '/', labelKey: 'nav.dashboard', icon: '⊞', end: true },
+  { to: '/live', labelKey: 'nav.live', icon: '◉' },
+  { to: '/map3d', labelKey: 'nav.map3d', icon: '◈' },
+  { to: '/history', labelKey: 'nav.history', icon: '◷' },
+  { to: '/analytics', labelKey: 'nav.analytics', icon: '📊' },
+  { to: '/settings', labelKey: 'nav.settings', icon: '⚙' },
+  { to: '/admin/users', labelKey: 'nav.users', icon: '👤', min: 'ADMIN' },
+  { to: '/admin/cameras', labelKey: 'nav.cameras', icon: '🎥', min: 'ADMIN' },
+  { to: '/admin/zones', labelKey: 'nav.zones', icon: '🗺', min: 'ADMIN' },
 ]
 
 export function Sidebar({ wsState }: Props) {
+  const t = useT()
   const { cameras } = useLiveCameras()
+  const { user, hasRole, logout } = useAuth()
   const liveCount = cameras.filter((c) => c.enabled && c.status === 'running').length
   const enabledCount = cameras.filter((c) => c.enabled).length
   const camsLive = liveCount === enabledCount && enabledCount > 0
+  const nav = NAV.filter((item) => !item.min || hasRole(item.min))
 
   return (
     <aside className="sidebar">
@@ -34,17 +48,17 @@ export function Sidebar({ wsState }: Props) {
           <div className="sidebar-brand-icon">📡</div>
           <div className="sidebar-brand-text">
             <h1>Hypervisor</h1>
-            <p>ONCF Security Platform</p>
+            <p>{t('brand.subtitle')}</p>
           </div>
         </div>
 
-        <p className="sidebar-section-label">Navigation</p>
+        <p className="sidebar-section-label">{t('nav.section')}</p>
 
         <nav>
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end}>
               <span className="nav-icon">{item.icon}</span>
-              {item.label}
+              {t(item.labelKey)}
             </NavLink>
           ))}
         </nav>
@@ -52,13 +66,41 @@ export function Sidebar({ wsState }: Props) {
         <div className="status-section">
           <div className={`status ${camsLive ? 'open' : 'connecting'}`}>
             <span className="dot" />
-            AI cameras: {liveCount}/{cameras.length} live
+            {t('nav.camerasLive', { live: liveCount, total: cameras.length })}
           </div>
           <div className={`status ${wsState}`}>
             <span className="dot" />
-            Live feed: {wsState === 'open' ? 'connected' : wsState}
+            {t('nav.feed', {
+              state:
+                wsState === 'open'
+                  ? t('nav.feed.connected')
+                  : wsState === 'connecting'
+                    ? t('nav.feed.connecting')
+                    : t('nav.feed.closed'),
+            })}
           </div>
         </div>
+
+        {user && (
+          <div className="sidebar-user">
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">
+                {user.fullName || user.username}
+              </span>
+              <span className={`sidebar-user-role role-${user.role}`}>
+                {t(`role.${user.role}`)}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn secondary btn-sm"
+              onClick={logout}
+              title={t('nav.signOut')}
+            >
+              {t('nav.signOut')}
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   )

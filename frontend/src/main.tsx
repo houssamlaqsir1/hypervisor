@@ -3,33 +3,31 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
-import { LiveAlertsProvider } from './context/LiveAlertsContext'
-import { LiveCamerasProvider } from './context/LiveCamerasContext'
+import { AuthProvider } from './context/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { applyTheme, loadPrefs } from './lib/prefs'
+import { initLocationFromPrefs } from './lib/operatorLocation'
+import { initLanguage } from './lib/i18n'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 
 ;(window as Window & { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL = '/cesium'
 
-// Apply saved theme before first render to avoid flash
-;(() => {
-  try {
-    const raw = localStorage.getItem('hypervisor_settings')
-    const theme = raw ? JSON.parse(raw).theme : undefined
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const dark = theme === 'dark' || (!theme && prefersDark) || (theme === 'system' && prefersDark)
-    if (dark) document.documentElement.classList.add('dark-mode')
-  } catch { /* ignore */ }
-})()
+// Apply saved theme and language before first render, to avoid a flash of
+// the wrong theme or a frame of untranslated interface.
+applyTheme(loadPrefs().theme)
+initLanguage()
+
+// Resume location tracking if the operator already opted in — the browser
+// won't re-prompt, so this just restarts the watch on a fresh page load.
+initLocationFromPrefs()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
-        <LiveAlertsProvider>
-          <LiveCamerasProvider>
-            <App />
-          </LiveCamerasProvider>
-        </LiveAlertsProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>,

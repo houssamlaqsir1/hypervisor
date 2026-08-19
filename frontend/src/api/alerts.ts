@@ -32,3 +32,19 @@ export function resolveAlert(
 ): Promise<Alert> {
   return api.post<Alert>(`/alerts/${id}/resolve`, { operator, note })
 }
+
+/** Permanently removes one alert. Admin only — the API rejects anyone else. */
+export function deleteAlert(id: number): Promise<void> {
+  return api.del<void>(`/alerts/${id}`)
+}
+
+/**
+ * Clears the alert log. Admin only.
+ *
+ * @param onlyResolved keep anything still open and clear only closed
+ *   incidents. Defaults to true so the destructive variant is always an
+ *   explicit choice at the call site.
+ */
+export function deleteAllAlerts(onlyResolved = true): Promise<{ deleted: number }> {
+  return api.del<{ deleted: number }>(`/alerts?onlyResolved=${onlyResolved}`)
+}

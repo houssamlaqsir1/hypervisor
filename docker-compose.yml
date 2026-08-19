@@ -1,14 +1,75 @@
-version: '3.8'
+# Full ONCF hypervisor stack — one command starts everything:
+#
+#   docker compose up --build
+#
+#   Phone (Larix) ──RTMP──▶ mediamtx ──RTSP──▶ detector (YOLOv8)
+#                              │                   │
+#                              └──HLS──▶ frontend  └──HTTP──▶ backend
+#
+# Services reach each other by service name on the default compose
+# network, which is why the detector points at `mediamtx` and `backend`
+# rather than localhost.
 
 services:
+  # ── media relay: receives the phone's RTMP push ────────────────────
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: hypervisor-mediamtx
+    restart: unless-stopped
+    ports:
+      - "1935:1935"   # RTMP  — Larix publishes here
+      - "8554:8554"   # RTSP  — the detector reads here
+      - "8888:8888"   # HLS   — the browser preview reads here
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+
+  # ── Spring Boot API + correlation engine ───────────────────────────
   backend:
     build: ./backend
+    container_name: hypervisor-backend
+    restart: unless-stopped
     ports:
       - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
+    # DB credentials and the other secrets stay in backend/.env — they are
+    # deliberately not duplicated here so nothing sensitive is committed.
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - mediamtx
 
+  # ── YOLOv8 detection service ───────────────────────────────────────
+  detector:
+    build: ./detector
+    container_name: hypervisor-detector
+    restart: unless-stopped
+    environment:
+      # Service names, not localhost — inside the compose network
+      # "localhost" would mean the detector's own container.
+      STREAM_URL: rtsp://mediamtx:8554/iphone
+      HYPERVISOR_API: http://backend:8080
+      CAMERA_ID: CAM-LIVE-1
+      YOLO_MODEL: yolov8n.pt
+      # Where the rails are in this camera's frame, normalised to 0–1 —
+      # the usual trapezoid narrowing towards the horizon. Aim the phone,
+      # read the corners off the preview, adjust. Severity for an object on
+      # the track is graded from how much of it falls inside this shape
+      # (half or more = track blocked = CRITICAL). Remove the line to grade
+      # on detection confidence alone, as before.
+      TRACK_POLYGON: "0.28,1.0 0.44,0.55 0.58,0.55 0.80,1.0"
+    depends_on:
+      - mediamtx
+      - backend
+
+  # ── React UI (nginx: static bundle + /api and /ws proxy) ───────────
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Vite inlines this at build time, so it must be supplied here.
+        VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:-}
+    container_name: hypervisor-frontend
+    restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "5173:80"
+    depends_on:
+      - backend

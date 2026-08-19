@@ -24,20 +24,15 @@ public class SeedDataLoader implements CommandLineRunner {
     @Override
     public void run(String... args) {
         List<Zone> seeds = List.of(
+                // Home of CAM-LIVE-1, whose registered position sits at this
+                // centre (see CameraSeedLoader). Keep the two together:
+                // detections landing outside every zone produce no alerts at
+                // all, so the live camera must always sit inside a zone.
                 Zone.builder()
                         .name("Rabat Agdal Platform")
                         .type(ZoneType.STATION)
                         .description("Passenger platform - Rabat Agdal (live camera site)")
                         .centerLat(34.0075).centerLon(-6.8533).radiusM(120.0)
-                        .build(),
-                // Covers CAM-LIVE-1's registered position (see CameraSeedLoader).
-                // Detections landing outside every zone produce no alerts at all,
-                // so the live demo camera must always sit inside a zone.
-                Zone.builder()
-                        .name("Rabat Test Site")
-                        .type(ZoneType.STATION)
-                        .description("Live demo camera site - CAM-LIVE-1")
-                        .centerLat(34.004614).centerLon(-6.852908).radiusM(150.0)
                         .build(),
                 Zone.builder()
                         .name("Casa-Voyageurs Platform")

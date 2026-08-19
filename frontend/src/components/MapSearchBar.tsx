@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { searchPlaces, type GeocodeResult } from '../api/geocode'
+import { loadPrefs } from '../lib/prefs'
 
 export type MapSearchPick = GeocodeResult
 
@@ -82,6 +83,13 @@ export function MapSearchBar({ onPick, className, suggest = false, mapReadyHint 
   }, [q, suggest, applySearchResults])
 
   const myLocation = useCallback(() => {
+    // Location is opt-in once, in Settings — so this button reflects that
+    // choice rather than quietly re-prompting from a different corner of
+    // the app.
+    if (!loadPrefs().location_tracking) {
+      setErr('Location tracking is off. Turn it on in Settings to use this.')
+      return
+    }
     if (!navigator.geolocation) {
       setErr('Geolocation is not supported in this browser.')
       return

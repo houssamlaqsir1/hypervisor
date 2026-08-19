@@ -33,6 +33,48 @@ public final class CameraClassTaxonomy {
         OTHER
     }
 
+    /**
+     * How much of a hazard an animal on the track actually is. Railway risk
+     * scales with mass, not with "is it an animal":
+     * <ul>
+     *     <li>{@link #SMALL} — cat, bird. A welfare concern and worth
+     *     logging, but no realistic derailment or damage risk to a train.</li>
+     *     <li>{@link #MEDIUM} — dog, sheep. Can damage the train front and
+     *     is a genuine reason to slow or stop.</li>
+     *     <li>{@link #LARGE} — cow, horse. Real derailment risk; the same
+     *     class of emergency as an obstruction.</li>
+     * </ul>
+     */
+    public enum AnimalSize {
+        SMALL,
+        MEDIUM,
+        LARGE
+    }
+
+    private static final Map<String, AnimalSize> ANIMAL_SIZES = Map.ofEntries(
+            Map.entry("cat", AnimalSize.SMALL),
+            Map.entry("bird", AnimalSize.SMALL),
+
+            Map.entry("dog", AnimalSize.MEDIUM),
+            Map.entry("sheep", AnimalSize.MEDIUM),
+            Map.entry("goat", AnimalSize.MEDIUM),
+
+            Map.entry("cow", AnimalSize.LARGE),
+            Map.entry("horse", AnimalSize.LARGE),
+            Map.entry("donkey", AnimalSize.LARGE),
+            Map.entry("camel", AnimalSize.LARGE)
+    );
+
+    /**
+     * Size band for an animal label. Unknown animals default to
+     * {@link AnimalSize#MEDIUM} — the cautious middle, since assuming an
+     * unrecognised animal is harmless would be the dangerous mistake.
+     */
+    public static AnimalSize animalSize(String label) {
+        if (label == null) return AnimalSize.MEDIUM;
+        return ANIMAL_SIZES.getOrDefault(label.toLowerCase(Locale.ROOT).trim(), AnimalSize.MEDIUM);
+    }
+
     private static final Map<String, Category> LABEL_TO_CATEGORY = Map.ofEntries(
             Map.entry("person", Category.PERSON),
             Map.entry("human", Category.PERSON),
@@ -46,6 +88,9 @@ public final class CameraClassTaxonomy {
             Map.entry("horse", Category.ANIMAL),
             Map.entry("cow", Category.ANIMAL),
             Map.entry("sheep", Category.ANIMAL),
+            Map.entry("goat", Category.ANIMAL),
+            Map.entry("donkey", Category.ANIMAL),
+            Map.entry("camel", Category.ANIMAL),
 
             Map.entry("bicycle", Category.VEHICLE),
             Map.entry("bike", Category.VEHICLE),

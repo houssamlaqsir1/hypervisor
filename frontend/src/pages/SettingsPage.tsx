@@ -1,57 +1,20 @@
-import { useEffect, useState } from 'react'
-
-/* ── Types ──────────────────────────────────────────────── */
-type Theme = 'dark' | 'light' | 'system'
-
-interface Prefs {
-  notif_push: boolean
-  notif_sound: boolean
-  notif_email: boolean
-  notif_critical_only: boolean
-  location_tracking: boolean
-  map_auto_center: boolean
-  map_3d_default: boolean
-  ai_auto_start: boolean
-  overlay_boxes: boolean
-  camera_hd: boolean
-  compact_alerts: boolean
-  animations: boolean
-  theme: Theme
-}
-
-const DEFAULTS: Prefs = {
-  notif_push: true,
-  notif_sound: true,
-  notif_email: false,
-  notif_critical_only: false,
-  location_tracking: true,
-  map_auto_center: true,
-  map_3d_default: false,
-  ai_auto_start: true,
-  overlay_boxes: true,
-  camera_hd: false,
-  compact_alerts: false,
-  animations: true,
-  theme: 'dark',
-}
-
-function load(): Prefs {
-  try {
-    const raw = localStorage.getItem('hypervisor_settings')
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) }
-  } catch { /* ignore */ }
-  return { ...DEFAULTS }
-}
-
-function save(p: Prefs) {
-  localStorage.setItem('hypervisor_settings', JSON.stringify(p))
-}
-
-function applyTheme(theme: Theme) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const dark = theme === 'dark' || (theme === 'system' && prefersDark)
-  document.documentElement.classList.toggle('dark-mode', dark)
-}
+import { useEffect, useState, type ReactNode } from 'react'
+import {
+  applyTheme,
+  DEFAULT_PREFS,
+  loadPrefs,
+  savePrefs,
+  type Prefs,
+} from '../lib/prefs'
+import { setLanguage, type Language, type Translate } from '../lib/i18n'
+import { useT } from '../lib/useT'
+import {
+  getLocation,
+  startLocation,
+  stopLocation,
+  subscribeLocation,
+  type OperatorLocation,
+} from '../lib/operatorLocation'
 
 /* ── Sub-components ─────────────────────────────────────── */
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -67,159 +30,270 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   )
 }
 
-function Chevron() {
+interface ShellProps {
+  icon: string
+  bg: string
+  label: string
+  desc: string
+  note?: string | null
+  noteTone?: 'info' | 'warn'
+  /** The control on the right: a switch, a dropdown, whatever the setting needs. */
+  control: ReactNode
+}
+
+/** Icon, label, description, optional status line, and one control. */
+function SettingRowShell({ icon, bg, label, desc, note, noteTone, control }: ShellProps) {
   return (
-    <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style={{ flexShrink: 0, opacity: 0.35 }}>
-      <path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="settings-row">
+      <div className="settings-row-icon-wrap" style={{ background: bg }}>{icon}</div>
+      <div className="settings-row-text">
+        <span className="settings-row-label">{label}</span>
+        <span className="settings-row-desc">{desc}</span>
+        {note && (
+          <span className={`settings-row-note settings-row-note--${noteTone === 'warn' ? 'warn' : 'ok'}`}>
+            {note}
+          </span>
+        )}
+      </div>
+      {control}
+    </div>
   )
 }
 
-function CheckIcon() {
+type RowProps = Omit<ShellProps, 'control'> & {
+  checked: boolean
+  onChange: (v: boolean) => void
+}
+
+/** A setting that is genuinely on or off. */
+function SettingRow({ checked, onChange, ...shell }: RowProps) {
+  return <SettingRowShell {...shell} control={<Toggle checked={checked} onChange={onChange} />} />
+}
+
+type SelectRowProps<T extends string> = Omit<ShellProps, 'control'> & {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (v: T) => void
+}
+
+/**
+ * A setting that picks one of several values.
+ *
+ * Language belongs here rather than on a switch: "Français — on/off" would
+ * frame English as the normal state and French as a deviation from it, when
+ * they are simply two equal choices. A list also has somewhere to put a
+ * third language without a redesign.
+ */
+function SettingSelectRow<T extends string>({ value, options, onChange, ...shell }: SelectRowProps<T>) {
   return (
-    <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
-      <path d="M1 5l4 4L12 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <SettingRowShell
+      {...shell}
+      control={
+        <select
+          className="settings-select"
+          value={value}
+          onChange={(e) => onChange(e.target.value as T)}
+          aria-label={shell.label}
+        >
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      }
+    />
   )
+}
+
+/**
+ * State of the geolocation watch. Unlike notifications this always has
+ * something worth showing while on: the live fix is the only evidence that
+ * tracking is working, and its accuracy tells the operator how much to
+ * trust a position placed on the map.
+ */
+function locationNote(loc: OperatorLocation, t: Translate): { text: string | null; tone: 'info' | 'warn' } {
+  switch (loc.status) {
+    case 'requesting':
+      return { text: t('settings.location.waiting'), tone: 'info' }
+    case 'active':
+      return {
+        text:
+          t('settings.location.tracking', {
+            lat: loc.latitude!.toFixed(5),
+            lon: loc.longitude!.toFixed(5),
+          }) + (loc.accuracyM ? t('settings.location.accuracy', { m: Math.round(loc.accuracyM) }) : ''),
+        tone: 'info',
+      }
+    case 'denied':
+    case 'unavailable':
+      return { text: loc.message, tone: 'warn' }
+    default:
+      return { text: null, tone: 'info' }
+  }
+}
+
+/** Whether the browser will still show its prompt, or has already decided. */
+function notificationNote(enabled: boolean, t: Translate): { text: string | null; tone: 'info' | 'warn' } {
+  if (!enabled || typeof Notification === 'undefined') return { text: null, tone: 'info' }
+  if (Notification.permission === 'granted') {
+    return { text: t('settings.notifications.allowed'), tone: 'info' }
+  }
+  if (Notification.permission === 'denied') {
+    return {
+      text: t('settings.notifications.blocked'),
+      tone: 'warn',
+    }
+  }
+  return { text: t('settings.notifications.willAsk'), tone: 'info' }
 }
 
 /* ── Main page ──────────────────────────────────────────── */
 export function SettingsPage() {
-  const [prefs, setPrefs] = useState<Prefs>(load)
+  const t = useT()
+  const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
   const [saved, setSaved] = useState(false)
+  const [location, setLocation] = useState<OperatorLocation>(getLocation)
+  // Permission is browser state, not React state — re-read it after asking.
+  const [permissionTick, setPermissionTick] = useState(0)
 
-  useEffect(() => {
-    applyTheme(prefs.theme)
-  }, [prefs.theme])
+  useEffect(() => subscribeLocation(setLocation), [])
+  useEffect(() => { applyTheme(prefs.theme) }, [prefs.theme])
 
   function update<K extends keyof Prefs>(key: K, value: Prefs[K]) {
     setPrefs((prev) => {
       const next = { ...prev, [key]: value }
-      save(next)
+      savePrefs(next)
       return next
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 1800)
   }
 
-  function clearCache() {
-    localStorage.removeItem('hypervisor_alert_cache')
+  function toggleNotifications(on: boolean) {
+    update('notifications', on)
+    // The browser only shows its banner when the page actually asks, and it
+    // asks at most once ever — so request on the way *on*, and only while
+    // the decision is still open.
+    if (on && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      void Notification.requestPermission().then(() => setPermissionTick((t) => t + 1))
+    }
+  }
+
+  function toggleLocation(on: boolean) {
+    update('location_tracking', on)
+    if (on) startLocation()
+    else stopLocation()
+  }
+
+  function chooseLanguage(next: Language) {
+    // setLanguage persists it itself, so mirror it into local state rather
+    // than writing the same key twice from two places.
+    setLanguage(next)
+    setPrefs((prev) => ({ ...prev, language: next }))
     setSaved(true)
     setTimeout(() => setSaved(false), 1800)
   }
+
+  function resetAll() {
+    savePrefs(DEFAULT_PREFS)
+    setPrefs(DEFAULT_PREFS)
+    applyTheme(DEFAULT_PREFS.theme)
+    setLanguage(DEFAULT_PREFS.language)
+    // Follow the restored default rather than assuming it means "off".
+    if (DEFAULT_PREFS.location_tracking) startLocation()
+    else stopLocation()
+  }
+
+  const locNote = locationNote(location, t)
+  const notifNote = notificationNote(prefs.notifications, t)
+  void permissionTick // re-render hook for the permission read above
 
   return (
     <div className="settings-page">
       <div className="page-header">
         <div>
-          <h2>Settings</h2>
-          <p>Manage your preferences, notifications, and appearance.</p>
+          <h2>{t('settings.title')}</h2>
+          <p>{t('settings.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {saved && <span className="settings-saved-badge">Saved ✓</span>}
-          <button className="btn secondary btn-sm" onClick={() => { save(DEFAULTS); setPrefs(DEFAULTS); applyTheme(DEFAULTS.theme) }}>
-            Reset to defaults
+          {saved && <span className="settings-saved-badge">{t('common.saved')}</span>}
+          <button className="btn secondary btn-sm" onClick={resetAll}>
+            {t('settings.reset')}
           </button>
         </div>
       </div>
 
+      {/*
+        One panel rather than three. With four switches, separate cards per
+        category cost more in borders, padding and gaps than the grouping
+        buys — enough to push the last row off a laptop screen. Section
+        labels sit inline instead, so the grouping survives without the
+        chrome.
+      */}
       <div className="settings-grid">
+        <div className="settings-block">
 
-        {/* ── NOTIFICATIONS ── */}
-        <div className="settings-card">
-          <div className="settings-block">
-            <p className="settings-group-label">Notifications</p>
-            {[
-              { key: 'notif_push'         as const, label: 'Push notifications',  desc: 'Real-time browser alerts',           icon: '🔔', bg: 'rgba(245,158,11,0.18)' },
-              { key: 'notif_sound'        as const, label: 'Alert sounds',        desc: 'Play audio on new alerts',           icon: '🔊', bg: 'rgba(99,102,241,0.18)' },
-              { key: 'notif_email'        as const, label: 'Email notifications', desc: 'Send critical alerts to your email', icon: '✉️', bg: 'rgba(37,99,235,0.18)'  },
-              { key: 'notif_critical_only'as const, label: 'Critical only',       desc: 'Suppress LOW and MEDIUM alerts',     icon: '🚨', bg: 'rgba(220,38,38,0.18)'  },
-            ].map((r) => (
-              <div key={r.key} className="settings-row">
-                <div className="settings-row-icon-wrap" style={{ background: r.bg }}>{r.icon}</div>
-                <div className="settings-row-text">
-                  <span className="settings-row-label">{r.label}</span>
-                  <span className="settings-row-desc">{r.desc}</span>
-                </div>
-                <Toggle checked={prefs[r.key]} onChange={(v) => update(r.key, v)} />
-              </div>
-            ))}
-          </div>
+          <p className="settings-group-label">{t('settings.group.alerts')}</p>
+
+          <SettingRow
+            icon="🔔"
+            bg="rgba(245,158,11,0.18)"
+            label={t('settings.notifications')}
+            desc={t('settings.notifications.desc')}
+            checked={prefs.notifications}
+            onChange={toggleNotifications}
+            note={notifNote.text}
+            noteTone={notifNote.tone}
+          />
+
+          <SettingRow
+            icon="🚨"
+            bg="rgba(220,38,38,0.18)"
+            label={t('settings.highCritical')}
+            desc={t('settings.highCritical.desc')}
+            checked={prefs.notif_high_critical_only}
+            onChange={(v) => update('notif_high_critical_only', v)}
+          />
+
+          <p className="settings-group-label">{t('settings.group.location')}</p>
+
+          <SettingRow
+            icon="📍"
+            bg="rgba(34,197,94,0.18)"
+            label={t('settings.location')}
+            desc={t('settings.location.desc')}
+            checked={prefs.location_tracking}
+            onChange={toggleLocation}
+            note={locNote.text}
+            noteTone={locNote.tone}
+          />
+
+          <p className="settings-group-label">{t('settings.group.appearance')}</p>
+
+          <SettingRow
+            icon="🌙"
+            bg="rgba(99,102,241,0.18)"
+            label={t('settings.darkMode')}
+            desc={t('settings.darkMode.desc')}
+            checked={prefs.theme === 'dark'}
+            onChange={(v) => update('theme', v ? 'dark' : 'light')}
+          />
+
+          <p className="settings-group-label">{t('settings.group.language')}</p>
+
+          <SettingSelectRow
+            icon="🌐"
+            bg="rgba(37,99,235,0.18)"
+            label={t('settings.language')}
+            desc={t('settings.language.desc')}
+            value={prefs.language}
+            options={[
+              { value: 'en', label: 'English' },
+              { value: 'fr', label: 'Français' },
+            ]}
+            onChange={chooseLanguage}
+          />
+
         </div>
-
-        {/* ── LOCATION & MAP ── */}
-        <div className="settings-card">
-          <div className="settings-block">
-            <p className="settings-group-label">Location & Map</p>
-            {[
-              { key: 'location_tracking'as const, label: 'Location tracking', desc: 'Use your browser geolocation',            icon: '📍', bg: 'rgba(34,197,94,0.18)'  },
-              { key: 'map_auto_center'  as const, label: 'Auto-center map',   desc: 'Pan to new alert locations automatically', icon: '🗺️', bg: 'rgba(37,99,235,0.18)'  },
-              { key: 'map_3d_default'   as const, label: '3D map by default', desc: 'Open 3D view instead of flat map',         icon: '🌐', bg: 'rgba(139,92,246,0.18)' },
-            ].map((r) => (
-              <div key={r.key} className="settings-row">
-                <div className="settings-row-icon-wrap" style={{ background: r.bg }}>{r.icon}</div>
-                <div className="settings-row-text">
-                  <span className="settings-row-label">{r.label}</span>
-                  <span className="settings-row-desc">{r.desc}</span>
-                </div>
-                <Toggle checked={prefs[r.key]} onChange={(v) => update(r.key, v)} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── CAMERAS & AI ── */}
-        <div className="settings-card">
-          <div className="settings-block">
-            <p className="settings-group-label">Cameras & AI</p>
-            {[
-              { key: 'ai_auto_start'as const, label: 'Auto-start AI detection', desc: 'Begin analysis when a camera goes live', icon: '🤖', bg: 'rgba(34,197,94,0.18)'  },
-              { key: 'overlay_boxes'as const, label: 'Detection overlays',      desc: 'Draw bounding boxes on the camera feed', icon: '🎯', bg: 'rgba(245,158,11,0.18)' },
-              { key: 'camera_hd'    as const, label: 'HD stream quality',       desc: 'Higher resolution, more bandwidth',      icon: '📹', bg: 'rgba(99,102,241,0.18)' },
-            ].map((r) => (
-              <div key={r.key} className="settings-row">
-                <div className="settings-row-icon-wrap" style={{ background: r.bg }}>{r.icon}</div>
-                <div className="settings-row-text">
-                  <span className="settings-row-label">{r.label}</span>
-                  <span className="settings-row-desc">{r.desc}</span>
-                </div>
-                <Toggle checked={prefs[r.key]} onChange={(v) => update(r.key, v)} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── APPEARANCE ── */}
-        <div className="settings-card">
-          <div className="settings-block">
-            <p className="settings-group-label">Appearance</p>
-            <div className="settings-row">
-              <div className="settings-row-icon-wrap" style={{ background: 'rgba(99,102,241,0.18)' }}>🌙</div>
-              <div className="settings-row-text">
-                <span className="settings-row-label">Dark mode</span>
-                <span className="settings-row-desc">Switch to a dark colour scheme</span>
-              </div>
-              <Toggle checked={prefs.theme === 'dark'} onChange={(v) => update('theme', v ? 'dark' : 'light')} />
-            </div>
-            <div className="settings-row">
-              <div className="settings-row-icon-wrap" style={{ background: 'rgba(71,85,105,0.2)' }}>☰</div>
-              <div className="settings-row-text">
-                <span className="settings-row-label">Compact alert list</span>
-                <span className="settings-row-desc">Show more alerts with reduced row height</span>
-              </div>
-              <Toggle checked={prefs.compact_alerts} onChange={(v) => update('compact_alerts', v)} />
-            </div>
-            <div className="settings-row">
-              <div className="settings-row-icon-wrap" style={{ background: 'rgba(139,92,246,0.18)' }}>✨</div>
-              <div className="settings-row-text">
-                <span className="settings-row-label">Interface animations</span>
-                <span className="settings-row-desc">Enable transitions and motion effects</span>
-              </div>
-              <Toggle checked={prefs.animations} onChange={(v) => update('animations', v)} />
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   )

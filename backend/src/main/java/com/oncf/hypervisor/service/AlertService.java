@@ -155,6 +155,53 @@ public class AlertService {
         return (operator == null || operator.isBlank()) ? "operator" : operator.trim();
     }
 
+    /**
+     * Permanently removes one alert.
+     *
+     * <p>Deletion is deliberately separated from the alert lifecycle:
+     * acknowledging and resolving are how an operator <em>handles</em> an
+     * incident, and they keep the record. This is for records that should
+     * never have existed — a false positive from a miscalibrated camera, or
+     * test traffic — where keeping them would only train operators to
+     * ignore the log. Restricted to administrators for that reason.
+     *
+     * <p>The alert's camera/SIG event and zone are left untouched: they are
+     * the evidence the alert was derived from, owned by their own tables,
+     * and other alerts may reference the same event.
+     */
+    @Transactional
+    public void delete(Long id) {
+        Alert alert = alertRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Alert " + id + " not found"));
+        alertRepository.delete(alert);
+        log.info("Alert {} ({} {}) deleted", id, alert.getSeverity(), alert.getType());
+    }
+
+    /**
+     * Clears the alert log, either entirely or only the resolved entries.
+     *
+     * @param onlyResolved true to keep anything still open (NEW or
+     *                     ACKNOWLEDGED) and clear only closed incidents —
+     *                     routine housekeeping. False wipes the log
+     *                     outright, which is a maintenance action rather
+     *                     than an operational one.
+     * @return how many alerts were removed
+     */
+    @Transactional
+    public long deleteAll(boolean onlyResolved) {
+        long removed = onlyResolved
+                ? alertRepository.deleteByStatus(AlertStatus.RESOLVED)
+                : clearEverything();
+        log.warn("Alert log cleared — {} alert(s) deleted (onlyResolved={})", removed, onlyResolved);
+        return removed;
+    }
+
+    private long clearEverything() {
+        long total = alertRepository.count();
+        alertRepository.deleteAll();
+        return total;
+    }
+
     @Transactional(readOnly = true)
     public AlertStatsDto stats() {
         Map<AlertSeverity, Long> bySev = new EnumMap<>(AlertSeverity.class);

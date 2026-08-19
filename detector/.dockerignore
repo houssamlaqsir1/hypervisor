@@ -1,0 +1,7 @@
+# The local virtualenv is ~4 GB and would be copied into the build context.
+.venv/
+__pycache__/
+*.pyc
+.env
+runs/
+README.md

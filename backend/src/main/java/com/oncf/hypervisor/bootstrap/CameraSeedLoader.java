@@ -36,11 +36,15 @@ public class CameraSeedLoader implements CommandLineRunner {
     public void run(String... args) {
         Instant now = Instant.now();
         List<Camera> seeds = List.of(
+                // Positioned at the centre of the "Rabat Agdal Platform" zone
+                // (see SeedDataLoader). A camera outside every zone still
+                // detects, but no zone rule can fire for it — so if you move
+                // this one, move it to somewhere a zone actually covers.
                 Camera.builder()
                         .cameraId("CAM-LIVE-1")
                         .name("Live demo feed")
-                        .site("Rabat")
-                        .latitude(34.004614).longitude(-6.852908).elevationM(0.0)
+                        .site("Rabat Agdal")
+                        .latitude(34.0075).longitude(-6.8533).elevationM(0.0)
                         .active(true).createdAt(now).build(),
                 Camera.builder()
                         .cameraId("CAM-CASA-VOY-01")

@@ -1,3 +1,5 @@
+import { getToken, notifyUnauthorized } from './token'
+
 const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 async function request<T>(
@@ -5,12 +7,20 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const token = getToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
+    // A 401 means the token is missing/expired — force a logout so the UI
+    // sends the operator back to the login screen instead of failing silently.
+    if (res.status === 401) notifyUnauthorized()
     const text = await res.text().catch(() => '')
     throw new Error(`${res.status} ${res.statusText}: ${text}`)
   }
@@ -21,6 +31,8 @@ async function request<T>(
 export const api = {
   get: <T,>(p: string) => request<T>('GET', p),
   post: <T,>(p: string, body?: unknown) => request<T>('POST', p, body),
+  put: <T,>(p: string, body?: unknown) => request<T>('PUT', p, body),
+  patch: <T,>(p: string, body?: unknown) => request<T>('PATCH', p, body),
   del: <T,>(p: string) => request<T>('DELETE', p),
 }
 

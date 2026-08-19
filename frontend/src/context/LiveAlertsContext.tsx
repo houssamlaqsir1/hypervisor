@@ -11,6 +11,7 @@ import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import type { Alert } from '../types/api'
 import { WS_URL } from '../api/client'
+import { markSeenSilently } from '../lib/alertSeenLog'
 
 export type ConnectionState = 'connecting' | 'open' | 'closed'
 
@@ -20,6 +21,13 @@ type LiveAlertsContextValue = {
   seedAlerts: (next: Alert[]) => void
   /** Replace one alert in the live list by id (e.g. after acknowledge/resolve). */
   updateAlert: (next: Alert) => void
+  /**
+   * Drop alerts from the live list after they've been deleted server-side.
+   * Without this the Dashboard would keep showing an alert that no longer
+   * exists until the next page load, since deletions aren't broadcast over
+   * the alert topic the way new ones are.
+   */
+  removeAlerts: (ids: number[] | 'all') => void
   connectionState: ConnectionState
 }
 
@@ -36,6 +44,12 @@ export function LiveAlertsProvider({ children }: { children: ReactNode }) {
     useState<ConnectionState>('connecting')
 
   const seedAlerts = useCallback((next: Alert[]) => {
+    // These came from a history fetch, not from the live topic — they may be
+    // hours old and the operator has already seen them. Record them as
+    // accounted for *before* they enter the list, or the notification layer
+    // (which only sees the merged array) would announce a page load as if
+    // seven alerts had just fired.
+    markSeenSilently(next.map((a) => a.id))
     setAlerts((prev) => {
       const byId = new Map<number, Alert>()
       for (const a of prev) byId.set(a.id, a)
@@ -51,6 +65,15 @@ export function LiveAlertsProvider({ children }: { children: ReactNode }) {
     setAlerts((prev) =>
       prev.map((a) => (a.id === next.id ? next : a)),
     )
+  }, [])
+
+  const removeAlerts = useCallback((ids: number[] | 'all') => {
+    if (ids === 'all') {
+      setAlerts([])
+      return
+    }
+    const doomed = new Set(ids)
+    setAlerts((prev) => prev.filter((a) => !doomed.has(a.id)))
   }, [])
 
   useEffect(() => {
@@ -87,8 +110,8 @@ export function LiveAlertsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ alerts, seedAlerts, updateAlert, connectionState }),
-    [alerts, seedAlerts, updateAlert, connectionState],
+    () => ({ alerts, seedAlerts, updateAlert, removeAlerts, connectionState }),
+    [alerts, seedAlerts, updateAlert, removeAlerts, connectionState],
   )
 
   return (

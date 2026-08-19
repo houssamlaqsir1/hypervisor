@@ -49,6 +49,19 @@ import java.util.Map;
  * model confidence and dwell time). In STATION/NORMAL zones, standing still
  * isn't dangerous no matter how long it goes on, so it stays silent there —
  * dwell time alone never manufactures an alert out of a safe location.
+ *
+ * <p><b>The trajectory has to be real for any of this to mean anything.</b>
+ * Every feature the model reads — wander radius, path length, net
+ * displacement, average speed — is a difference between successive
+ * positions, so it is only informative if those positions differ. That is
+ * what {@link com.oncf.hypervisor.service.DetectionLocator} provides:
+ * events are stored at the object's own estimated position rather than at
+ * the camera's, so a person pacing a platform produces a path with real
+ * length and a real radius. Without it every point in the history is the
+ * camera's fixed coordinate, and the model scores a motionless dot no
+ * matter what the person actually did — so the rule refuses to score a
+ * track whose points never move (see {@link #hasRealMovement}), rather
+ * than reporting a confident verdict drawn from no evidence.
  */
 @Component
 @Order(25)
@@ -84,6 +97,11 @@ public class LoiteringBehaviorRule implements CorrelationRule {
             CameraEvent c = recentDesc.get(i);
             points.add(new TrackPoint(c.getLatitude(), c.getLongitude(), c.getOccurredAt().getEpochSecond()));
         }
+        // A history of identical coordinates carries no movement information;
+        // scoring it would dress a fixed camera position up as a verdict
+        // about how someone moved.
+        if (!hasRealMovement(points)) return List.of();
+
         TrajectoryFeatures features = TrajectoryFeatureExtractor.extract(points);
         if (features.dwellTimeSec() < props.loiteringMinDwellSec()) return List.of();
 
@@ -143,6 +161,26 @@ public class LoiteringBehaviorRule implements CorrelationRule {
                 .cameraEvent(e)
                 .details(details)
                 .build());
+    }
+
+    /**
+     * True when the track contains at least two genuinely distinct positions.
+     *
+     * <p>Guards against scoring a degenerate history: if every event carries
+     * the same coordinate — a camera whose detector reports no per-object
+     * position, so every detection inherits the camera's own point — then
+     * the wander radius, path length and speed the model reads are all
+     * structurally zero. The model would happily return a probability for
+     * that, and it would be describing the camera's mounting bracket rather
+     * than anybody's behaviour.
+     */
+    private static boolean hasRealMovement(List<TrackPoint> points) {
+        if (points.size() < 2) return false;
+        TrackPoint first = points.get(0);
+        for (TrackPoint p : points) {
+            if (p.lat() != first.lat() || p.lon() != first.lon()) return true;
+        }
+        return false;
     }
 
     /** Prefer the most sensitive zone when a point sits inside more than one. */

@@ -26,6 +26,7 @@ public class CameraEventService {
     private final CameraEventRepository repository;
     private final CameraRepository cameraRepository;
     private final LivePositionService livePositionService;
+    private final DetectionLocator detectionLocator;
     private final CorrelationEngine engine;
     private final AlertService alertService;
     private final HypervisorMapper mapper;
@@ -65,17 +66,27 @@ public class CameraEventService {
                             + "and no latitude/longitude was provided");
         }
 
+        String rawPayload = mapper.writeJson(req.rawPayload());
+
+        // The coordinates above locate the *camera*. If the detector also told
+        // us where in the frame the object stands, offset from there so this
+        // event lands on the object instead — otherwise every detection this
+        // camera ever makes shares one point, and distance-based rules have
+        // nothing real to measure. See DetectionLocator.
+        DetectionLocator.Located located = detectionLocator.locate(
+                latitude, longitude, camera.map(Camera::getHeadingDeg).orElse(null), rawPayload);
+
         CameraEvent e = CameraEvent.builder()
                 .cameraId(req.cameraId())
                 .eventType(req.eventType())
                 .label(req.label())
                 .confidence(req.confidence())
-                .latitude(latitude)
-                .longitude(longitude)
+                .latitude(located.latitude())
+                .longitude(located.longitude())
                 .elevationM(elevationM)
                 .occurredAt(req.occurredAt() != null ? req.occurredAt() : now)
                 .receivedAt(now)
-                .rawPayload(mapper.writeJson(req.rawPayload()))
+                .rawPayload(rawPayload)
                 .build();
         CameraEvent saved = repository.save(e);
 

@@ -156,6 +156,13 @@ export function Map3DPage() {
     lon: number
     title: string
   } | null>(null)
+  /**
+   * Pin for an alert opened from elsewhere in the app (the "Map" button on
+   * an alert row). Kept separate from the live alert pins on purpose: those
+   * are filtered by the replay window, so an older alert would fly the
+   * camera to an empty spot with nothing marking it.
+   */
+  const [focusPin, setFocusPin] = useState<{ lat: number; lon: number } | null>(null)
 
   useEffect(() => {
     getSig3dScene()
@@ -263,15 +270,22 @@ export function Map3DPage() {
    * history) links here as `/map3d?lat=..&lon=..` so clicking it zooms
    * straight to where the alert actually happened, instead of just
    * switching pages and leaving the operator to hunt for it on the globe.
+   *
+   * <p>It also drops a dedicated marker there. The regular alert pins are
+   * filtered by the replay window, so without this an alert older than the
+   * window would fly the camera to an unmarked patch of map.
    */
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed()) return
     const latParam = searchParams.get('lat')
     const lonParam = searchParams.get('lon')
     if (latParam == null || lonParam == null) return
     const lat = Number(latParam)
     const lon = Number(lonParam)
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return
+
+    setFocusPin({ lat, lon })
+
+    if (!viewer || viewer.isDestroyed()) return
     viewer.camera.flyTo({
       destination: Cartesian3.fromDegrees(lon, lat, 1200),
       duration: 1.5,
@@ -287,6 +301,9 @@ export function Map3DPage() {
       CRITICAL: pb.fromColor(SEV_COLOR.CRITICAL, 40).toDataURL(),
       MY_LOCATION: pb.fromColor(Color.DEEPSKYBLUE, 42).toDataURL(),
       SEARCH: pb.fromColor(Color.MEDIUMSPRINGGREEN, 42).toDataURL(),
+      // Deliberately oversized + distinct so the alert you navigated to is
+      // unmistakable, even sitting among the regular severity pins.
+      FOCUS: pb.fromColor(Color.MAGENTA, 52).toDataURL(),
     } as const
   }, [])
 
@@ -550,6 +567,31 @@ export function Map3DPage() {
                 image={pinDataUrls.SEARCH}
                 verticalOrigin={VerticalOrigin.BOTTOM}
                 scaleByDistance={new NearFarScalar(500, 1.0, 30000, 0.55)}
+              />
+            </Entity>
+          )}
+          {focusPin && (
+            <Entity
+              name="Selected alert"
+              description={`Alert location: ${focusPin.lat.toFixed(5)}, ${focusPin.lon.toFixed(5)}`}
+              position={Cartesian3.fromDegrees(focusPin.lon, focusPin.lat, 20)}
+            >
+              <BillboardGraphics
+                image={pinDataUrls.FOCUS}
+                verticalOrigin={VerticalOrigin.BOTTOM}
+                scaleByDistance={new NearFarScalar(500, 1.2, 30000, 0.7)}
+              />
+              <LabelGraphics
+                text="Selected alert"
+                font="600 13px Inter, sans-serif"
+                fillColor={Color.WHITE}
+                outlineColor={Color.BLACK}
+                outlineWidth={3}
+                style={LabelStyle.FILL_AND_OUTLINE}
+                verticalOrigin={VerticalOrigin.BOTTOM}
+                pixelOffset={new Cartesian2(0, -56)}
+                horizontalOrigin={HorizontalOrigin.CENTER}
+                scaleByDistance={new NearFarScalar(500, 1.0, 30000, 0.0)}
               />
             </Entity>
           )}

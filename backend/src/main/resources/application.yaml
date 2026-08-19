@@ -33,6 +33,10 @@ server:
   shutdown: graceful
 
 hypervisor:
+  jwt:
+    # MUST be overridden via env in production (min 32 chars for HS256).
+    secret: ${JWT_SECRET:oncf-hypervisor-dev-secret-key-change-me-in-production}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
   cors:
     allowed-origins:
       - http://localhost:5173
@@ -56,7 +60,7 @@ hypervisor:
     cooldown-intrusion-sec: 120
     cooldown-object-on-track-sec: 120
     cooldown-escalation-sec: 300
-    cooldown-station-activity-sec: 900
+    cooldown-station-activity-sec: 120
     # Loitering behavior model: how far back it looks, and how much signal
     # it needs before trusting a verdict.
     loitering-window-minutes: 20
@@ -67,6 +71,19 @@ hypervisor:
     # closing in on a live track without being on it yet.
     cooldown-fall-sec: 120
     cooldown-track-proximity-sec: 180
+    # Unattended baggage: a bag that persists with nobody around it.
+    baggage-unattended-minutes: 5
+    baggage-min-sightings: 3
+    cooldown-baggage-sec: 600
+    # Platform crowding — people pushed toward the edge is a real hazard.
+    crowd-window-minutes: 2
+    crowd-threshold: 25
+    cooldown-crowd-sec: 300
+    # Activity during closed hours, interpreted in ONCF's local time.
+    night-start-hour: 23
+    night-end-hour: 5
+    night-zone-id: Africa/Casablanca
+    cooldown-night-sec: 600
   live:
     opensky:
       enabled: ${OPENSKY_ENABLED:true}

@@ -1,7 +1,4 @@
 import Hls from 'hls.js'
-import * as cocoSsd from '@tensorflow-models/coco-ssd'
-// Side-effect import — registers the WebGL backend coco-ssd uses.
-import '@tensorflow/tfjs'
 import {
   createContext,
   useCallback,
@@ -12,9 +9,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { CameraEventType, Zone } from '../types/api'
+import type { Zone } from '../types/api'
 import { listZones } from '../api/zones'
-import { pushWebcamEvent } from '../api/live'
 
 /* ------------------------------------------------------------------ */
 /*  Camera registry                                                   */
@@ -64,9 +60,6 @@ export interface CameraRuntime extends CameraConfig {
   error: string | null
   /** Whether the operator wants this camera live; persisted in localStorage. */
   enabled: boolean
-  lastDetectionAt: number | null
-  postedCount: number
-  lastDetections: cocoSsd.DetectedObject[]
 }
 
 interface LiveCamerasContextValue {
@@ -83,59 +76,23 @@ interface LiveCamerasContextValue {
 const LiveCamerasContext = createContext<LiveCamerasContextValue | null>(null)
 
 /* ------------------------------------------------------------------ */
-/*  AI detection config                                               */
-/* ------------------------------------------------------------------ */
-
-/** Total detection ticks per second, shared across all running cameras. */
-const TOTAL_DETECTION_FPS = 2
-/** Don't spam the backend with the same class from the same camera. */
-const POST_COOLDOWN_MS = 4_000
-const MIN_CONFIDENCE = 0.55
-
-/**
- * Fall-detection heuristic: a person's bounding box height/width ratio is
- * normally well above 1 (taller than wide). If it flips to a short, wide
- * box within a couple of seconds, that's a real shape change consistent
- * with a collapse — a genuine hazard signal, independent of confidence
- * banding or how long the person has been in frame.
- */
-const FALL_WINDOW_MS = 3_000
-const FALL_MIN_SPAN_MS = 400
-const FALL_UPRIGHT_RATIO = 1.3
-const FALL_PRONE_RATIO = 0.8
-const FALL_POST_COOLDOWN_MS = 30_000
-
-/** COCO-SSD classes worth correlating against. Everything else gets dropped. */
-const RELEVANT_CLASSES: Record<
-  string,
-  { label: string; type: CameraEventType }
-> = {
-  person: { label: 'person', type: 'HUMAN_DETECTED' },
-  bicycle: { label: 'bicycle', type: 'OBJECT_DETECTED' },
-  car: { label: 'car', type: 'OBJECT_DETECTED' },
-  motorcycle: { label: 'motorcycle', type: 'OBJECT_DETECTED' },
-  bus: { label: 'bus', type: 'OBJECT_DETECTED' },
-  truck: { label: 'truck', type: 'OBJECT_DETECTED' },
-  train: { label: 'train', type: 'OBJECT_DETECTED' },
-  backpack: { label: 'backpack', type: 'OBJECT_DETECTED' },
-  handbag: { label: 'handbag', type: 'OBJECT_DETECTED' },
-  suitcase: { label: 'suitcase', type: 'OBJECT_DETECTED' },
-  dog: { label: 'dog', type: 'OBJECT_DETECTED' },
-}
-
-/**
- * Rabat Agdal — last-resort default, used only until the browser's first
- * GPS fix comes in (or if geolocation is unsupported/denied). The live
- * camera ({@code CAM-LIVE-1}) is a handheld/mobile device, not a fixed
- * installation, so it's deliberately left unregistered server-side and
- * relies on the phone's actual live position (see {@code currentCoords}
- * below) instead of a surveyed location.
- */
-const FALLBACK_COORDS: [number, number] = [34.0075, -6.8533]
-
-/* ------------------------------------------------------------------ */
 /*  Provider                                                          */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Owns the operator-facing video feeds only.
+ *
+ * <p>AI detection deliberately does <b>not</b> happen here. It runs
+ * server-side in the YOLOv8 detector service, which reads the same
+ * MediaMTX stream directly and posts events to the backend. That matters
+ * for two reasons: YOLOv8 is substantially more accurate than the
+ * in-browser COCO-SSD model this replaced, and detection no longer stops
+ * the moment an operator closes the browser tab — which is the only
+ * acceptable behaviour for a surveillance system.
+ *
+ * <p>So this provider's whole job is: keep the HLS streams alive, expose
+ * their status, and hand out the video elements for preview.
+ */
 
 const ENABLED_KEY = 'hypervisor:live-cameras:enabled'
 
@@ -159,34 +116,9 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
   /** Refs are the source of truth for video DOM nodes (rendered hidden below). */
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
   const hlsRefs = useRef<Record<string, Hls | null>>({})
-  /** Per-camera detection bookkeeping — refs to avoid render churn. */
-  const lastPostedRef = useRef<Record<string, Map<string, number>>>({})
-  /** Rolling aspect-ratio history per camera, used by the fall-detection heuristic below. */
-  const fallHistoryRef = useRef<Record<string, { ratio: number; t: number }[]>>({})
-  const lastFallPostedRef = useRef<Record<string, number>>({})
-  const roundRobinIdxRef = useRef<number>(0)
-  const detectIntervalRef = useRef<number | null>(null)
-  const detectingRef = useRef<boolean>(false)
-  const modelRef = useRef<cocoSsd.ObjectDetection | null>(null)
-  const modelLoadingRef = useRef<Promise<cocoSsd.ObjectDetection> | null>(null)
   /** Forward-declaration ref so HLS retry handlers can call startCamera. */
   const startCameraRef = useRef<(key: string) => Promise<void>>(
     async () => undefined,
-  )
-  /**
-   * This provider runs wherever the dashboard is open — often a PC — which
-   * is not necessarily where the camera physically is. Calling
-   * `navigator.geolocation` here would report *this device's* position,
-   * not the camera's, so it deliberately doesn't try. A handheld/mobile
-   * camera (the phone) reports its own real GPS independently, from a page
-   * opened directly on it (see {@code PhoneGpsPage} + `/api/live/camera-position`);
-   * the backend prefers that live report over whatever coordinates ride
-   * along with the detection event. This is only the last-resort value for
-   * an unregistered camera that also isn't reporting its own position.
-   */
-  const currentCoords = useCallback(
-    (): [number, number, number] => [FALLBACK_COORDS[0], FALLBACK_COORDS[1], 0],
-    [],
   )
 
   const [zones, setZones] = useState<Zone[]>([])
@@ -205,16 +137,13 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
           status: 'idle',
           error: null,
           enabled: enabledInitial[c.key],
-          lastDetectionAt: null,
-          postedCount: 0,
-          lastDetections: [],
         }
       }
       return out
     },
   )
 
-  /** Keep a ref to runtimes for the detection loop (which runs outside React). */
+  /** Keep a ref to runtimes for callbacks that run outside React's flow. */
   const runtimesRef = useRef(runtimes)
   useEffect(() => {
     runtimesRef.current = runtimes
@@ -244,24 +173,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     return () => {
       cancelled = true
     }
-  }, [])
-
-  /* --------------------------- model load -------------------------- */
-
-  const ensureModel = useCallback(async (): Promise<cocoSsd.ObjectDetection> => {
-    if (modelRef.current) return modelRef.current
-    if (modelLoadingRef.current) return modelLoadingRef.current
-    modelLoadingRef.current = cocoSsd
-      .load({ base: 'lite_mobilenet_v2' })
-      .then((m) => {
-        modelRef.current = m
-        return m
-      })
-      .catch((e) => {
-        modelLoadingRef.current = null
-        throw e
-      })
-    return modelLoadingRef.current
   }, [])
 
   /* ----------------------- stream lifecycle ------------------------ */
@@ -296,7 +207,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
           hls.attachMedia(videoEl)
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             void videoEl.play().catch(() => {
-              /* autoplay policy — irrelevant for headless detection */
+              /* autoplay policy — the preview pane handles playback itself */
             })
             updateCamera(key, { status: 'running' })
           })
@@ -324,9 +235,9 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
               status: 'error',
               error: 'Native HLS failed — retrying…',
             })
-            // Same auto-retry as the hls.js branch below — without this, a
+            // Same auto-retry as the hls.js branch above — without this, a
             // dropped native-HLS stream (Safari) never recovers on its own
-            // and detection just stops silently until the page is reloaded.
+            // and the preview stays dead until the page is reloaded.
             window.setTimeout(() => {
               if (runtimesRef.current[key]?.enabled) {
                 updateCamera(key, { status: 'idle' })
@@ -373,7 +284,7 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
         video.onerror = null
         video.load()
       }
-      updateCamera(key, { status: 'idle', error: null, lastDetections: [] })
+      updateCamera(key, { status: 'idle', error: null })
     },
     [updateCamera],
   )
@@ -413,10 +324,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
   /* -------------------------- auto-start --------------------------- */
 
   useEffect(() => {
-    // Load the model in the background so the first detection isn't delayed.
-    void ensureModel().catch((e) =>
-      console.warn('LiveCameras: model load failed', e),
-    )
     // Start every enabled camera once the videos are in the DOM.
     for (const c of CAMERAS) {
       if (runtimesRef.current[c.key]?.enabled) {
@@ -429,155 +336,6 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     // We intentionally run this once on mount — start/stop are stable refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  /* ------------------------ detection loop ------------------------- */
-
-  const checkForFall = useCallback(
-    async (cam: CameraRuntime, detections: cocoSsd.DetectedObject[], now: number) => {
-      const person = detections.find((d) => d.class === 'person' && d.score >= MIN_CONFIDENCE)
-      const history =
-        fallHistoryRef.current[cam.key] ?? (fallHistoryRef.current[cam.key] = [])
-
-      if (!person) {
-        // Lost the person — any future reappearance should start a fresh baseline.
-        fallHistoryRef.current[cam.key] = []
-        return
-      }
-
-      const [, , width, height] = person.bbox
-      const ratio = width > 0 ? height / width : 0
-      history.push({ ratio, t: now })
-      while (history.length > 0 && now - history[0].t > FALL_WINDOW_MS) history.shift()
-      if (history.length < 2) return
-
-      const priorRatio = history[0].ratio
-      const spanMs = now - history[0].t
-      const lastFallAt = lastFallPostedRef.current[cam.key] ?? 0
-
-      const looksLikeAFall =
-        priorRatio >= FALL_UPRIGHT_RATIO &&
-        ratio <= FALL_PRONE_RATIO &&
-        spanMs >= FALL_MIN_SPAN_MS &&
-        now - lastFallAt > FALL_POST_COOLDOWN_MS
-      if (!looksLikeAFall) return
-
-      lastFallPostedRef.current[cam.key] = now
-      try {
-        const [lat, lon, elevationM] = currentCoords()
-        await pushWebcamEvent({
-          cameraId: cam.id,
-          eventType: 'ANOMALY',
-          label: 'person_fallen',
-          confidence: Number(person.score.toFixed(3)),
-          latitude: lat,
-          longitude: lon,
-          elevationM,
-          rawPayload: {
-            source: 'phone_hls',
-            model: 'coco-ssd-fall-heuristic',
-            aspectRatioBefore: Number(priorRatio.toFixed(3)),
-            aspectRatioAfter: Number(ratio.toFixed(3)),
-            spanMs,
-            cameraKey: cam.key,
-          },
-        })
-      } catch (err) {
-        console.warn(`LiveCameras: fall push failed for ${cam.key}`, err)
-      }
-    },
-    [currentCoords],
-  )
-
-  const detectTick = useCallback(async () => {
-    if (detectingRef.current) return
-    const running = Object.values(runtimesRef.current).filter(
-      (c) => c.status === 'running' && c.enabled,
-    )
-    if (running.length === 0) return
-    const model = modelRef.current
-    if (!model) return
-
-    detectingRef.current = true
-    try {
-      const idx = roundRobinIdxRef.current % running.length
-      roundRobinIdxRef.current = (idx + 1) % running.length
-      const cam = running[idx]
-      const video = videoRefs.current[cam.key]
-      if (!video || video.readyState < 2) return
-      if (!video.videoWidth || !video.videoHeight) return
-
-      let detections: cocoSsd.DetectedObject[] = []
-      try {
-        detections = await model.detect(video, 6)
-      } catch (e) {
-        console.warn(`LiveCameras: detect failed for ${cam.key}`, e)
-        return
-      }
-
-      updateCamera(cam.key, {
-        lastDetections: detections,
-        lastDetectionAt: detections.length > 0 ? Date.now() : cam.lastDetectionAt,
-      })
-
-      // Forward relevant detections to the backend.
-      const now = Date.now()
-      await checkForFall(cam, detections, now)
-      const camMap =
-        lastPostedRef.current[cam.key] ?? (lastPostedRef.current[cam.key] = new Map())
-      for (const d of detections) {
-        const known = RELEVANT_CLASSES[d.class]
-        if (!known) continue
-        if (d.score < MIN_CONFIDENCE) continue
-        const lastSent = camMap.get(d.class) ?? 0
-        if (now - lastSent < POST_COOLDOWN_MS) continue
-        camMap.set(d.class, now)
-
-        try {
-          const [lat, lon, elevationM] = currentCoords()
-          await pushWebcamEvent({
-            cameraId: cam.id,
-            eventType: known.type,
-            label: known.label,
-            confidence: Number(d.score.toFixed(3)),
-            latitude: lat,
-            longitude: lon,
-            elevationM,
-            rawPayload: {
-              source: 'phone_hls',
-              model: 'coco-ssd',
-              bbox: d.bbox,
-              class: d.class,
-              cameraKey: cam.key,
-              userAgent: navigator.userAgent,
-            },
-          })
-          updateCamera(cam.key, {
-            postedCount: (runtimesRef.current[cam.key]?.postedCount ?? 0) + 1,
-          })
-        } catch (err) {
-          console.warn(`LiveCameras: push failed for ${cam.key}`, err)
-        }
-      }
-    } finally {
-      detectingRef.current = false
-    }
-  }, [updateCamera, checkForFall, currentCoords])
-
-  useEffect(() => {
-    if (detectIntervalRef.current != null) {
-      window.clearInterval(detectIntervalRef.current)
-    }
-    detectIntervalRef.current = window.setInterval(
-      () => void detectTick(),
-      Math.max(50, Math.round(1000 / TOTAL_DETECTION_FPS)),
-    )
-    return () => {
-      if (detectIntervalRef.current != null) {
-        window.clearInterval(detectIntervalRef.current)
-        detectIntervalRef.current = null
-      }
-    }
-  }, [detectTick])
 
   /* --------------------------- context ----------------------------- */
 
@@ -605,10 +363,9 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     <LiveCamerasContext.Provider value={value}>
       {children}
       {/*
-        Hidden DOM-attached videos the provider drives. They keep playing
-        and feeding detection even when the operator is on another route.
-        Width/height = 1px so hls.js stays healthy (browsers
-        sometimes pause truly-detached or 0-size videos).
+        Hidden DOM-attached videos the provider drives, so the preview pane
+        can mirror them from any route. Width/height = 1px so hls.js stays
+        healthy (browsers sometimes pause truly-detached or 0-size videos).
       */}
       <div
         aria-hidden

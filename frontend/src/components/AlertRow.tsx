@@ -2,17 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { acknowledgeAlert, resolveAlert } from '../api/alerts'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
-import type { Alert, AlertDetails, AlertStatus } from '../types/api'
+import { useAuth } from '../context/AuthContext'
+import type { Alert, AlertDetails } from '../types/api'
 
 interface Props {
   alert: Alert
 }
 
-const STATUS_LABEL: Record<AlertStatus, string> = {
-  NEW: 'New',
-  ACKNOWLEDGED: 'Acknowledged',
-  RESOLVED: 'Resolved',
-}
+import { useT } from '../lib/useT'
 
 function formatWhen(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString() : '—'
@@ -81,8 +78,10 @@ function FusionDetails({ details }: { details: AlertDetails }) {
 }
 
 export function AlertRow({ alert }: Props) {
+  const t = useT()
   const navigate = useNavigate()
   const { updateAlert } = useLiveAlertsContext()
+  const { hasRole } = useAuth()
   const [busy, setBusy] = useState(false)
   const [showNote, setShowNote] = useState(false)
   const [note, setNote] = useState('')
@@ -90,6 +89,8 @@ export function AlertRow({ alert }: Props) {
   const ts = new Date(alert.createdAt).toLocaleString()
   const isFusion = alert.type === 'FUSION' && alert.details != null
   const hasLocation = alert.latitude != null && alert.longitude != null
+  // Only operators & admins can act on alerts; viewers get a read-only console.
+  const canAct = hasRole('OPERATOR')
 
   async function onAcknowledge() {
     setBusy(true)
@@ -117,25 +118,25 @@ export function AlertRow({ alert }: Props) {
 
   return (
     <div className={`alert-row sev-${alert.severity} status-${alert.status}`}>
-      <span className="sev">{alert.severity}</span>
+      <span className="sev">{t(`severity.${alert.severity}`)}</span>
       <div className="message">
-        <strong>{alert.type.replace('_', ' ')}</strong>
+        <strong>{t(`alertType.${alert.type}`)}</strong>
         <small>{alert.message}</small>
         {alert.zoneName && (
           <small>
-            Zone: <b>{alert.zoneName}</b>
+            {t('alert.zone')} <b>{alert.zoneName}</b>
           </small>
         )}
         {isFusion && alert.details && <FusionDetails details={alert.details} />}
         {alert.status === 'ACKNOWLEDGED' && (
           <small className="alert-lifecycle">
-            Acknowledged by <b>{alert.acknowledgedBy ?? 'operator'}</b> ·{' '}
+            {t('alert.acknowledgedBy')} <b>{alert.acknowledgedBy ?? t('alert.by')}</b> ·{' '}
             {formatWhen(alert.acknowledgedAt)}
           </small>
         )}
         {alert.status === 'RESOLVED' && (
           <small className="alert-lifecycle">
-            Resolved by <b>{alert.resolvedBy ?? 'operator'}</b> ·{' '}
+            {t('alert.resolvedBy')} <b>{alert.resolvedBy ?? t('alert.by')}</b> ·{' '}
             {formatWhen(alert.resolvedAt)}
             {alert.resolutionNote ? ` — “${alert.resolutionNote}”` : ''}
           </small>
@@ -144,7 +145,7 @@ export function AlertRow({ alert }: Props) {
           <div className="alert-resolve-note">
             <input
               type="text"
-              placeholder="Resolution note (optional)"
+              placeholder={t('alert.notePlaceholder')}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               disabled={busy}
@@ -155,7 +156,7 @@ export function AlertRow({ alert }: Props) {
               onClick={onResolve}
               disabled={busy}
             >
-              Confirm resolve
+              {t('alert.confirmResolve')}
             </button>
             <button
               type="button"
@@ -163,14 +164,14 @@ export function AlertRow({ alert }: Props) {
               onClick={() => setShowNote(false)}
               disabled={busy}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         )}
       </div>
       <div className="alert-row-side">
         <span className={`alert-status-badge status-${alert.status}`}>
-          {STATUS_LABEL[alert.status]}
+          {t(`status.${alert.status}`)}
         </span>
         <time>{ts}</time>
       </div>
@@ -179,32 +180,32 @@ export function AlertRow({ alert }: Props) {
           <button
             type="button"
             className="btn secondary btn-sm"
-            title="Fly to where this alert happened on the 3D map"
+            title={t('alert.mapTitle')}
             onClick={() =>
               navigate(`/map3d?lat=${alert.latitude}&lon=${alert.longitude}`)
             }
           >
-            🗺 Map
+            🗺 {t('dashboard.map')}
           </button>
         )}
-        {alert.status === 'NEW' && (
+        {canAct && alert.status === 'NEW' && (
           <button
             type="button"
             className="btn secondary btn-sm"
             onClick={onAcknowledge}
             disabled={busy}
           >
-            Acknowledge
+            {t('dashboard.acknowledge')}
           </button>
         )}
-        {alert.status !== 'RESOLVED' && !showNote && (
+        {canAct && alert.status !== 'RESOLVED' && !showNote && (
           <button
             type="button"
             className="btn btn-sm"
             onClick={() => setShowNote(true)}
             disabled={busy}
           >
-            Resolve
+            {t('dashboard.resolve')}
           </button>
         )}
       </div>

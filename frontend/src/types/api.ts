@@ -8,6 +8,9 @@ export type AlertType =
   | 'LOITERING'
   | 'FALL_DETECTED'
   | 'TRACK_PROXIMITY'
+  | 'UNATTENDED_BAGGAGE'
+  | 'CROWD_DENSITY'
+  | 'NIGHT_ACTIVITY'
   | 'MANUAL'
 export type CameraEventType =
   | 'HUMAN_DETECTED'
@@ -56,7 +59,54 @@ export interface AlertDetails {
   [key: string]: unknown
 }
 
+export type Role = 'VIEWER' | 'OPERATOR' | 'ADMIN'
+
+export interface AuthUser {
+  username: string
+  fullName: string | null
+  role: Role
+}
+
+export interface LoginResponse {
+  token: string
+  expiresInMinutes: number
+  user: AuthUser
+}
+
+export interface AdminUser {
+  id: number
+  username: string
+  fullName: string | null
+  role: Role
+  enabled: boolean
+  createdAt: string
+}
+
+export interface AdminCamera {
+  id: number
+  cameraId: string
+  name: string
+  site: string | null
+  latitude: number
+  longitude: number
+  elevationM: number | null
+  /** Bearing the camera faces, degrees clockwise from north. Null = unsurveyed. */
+  headingDeg: number | null
+  active: boolean
+  createdAt: string
+}
+
 export type AlertStatus = 'NEW' | 'ACKNOWLEDGED' | 'RESOLVED'
+
+export interface Analytics {
+  windowDays: number
+  total: number
+  bySeverity: Record<AlertSeverity, number>
+  byType: Partial<Record<AlertType, number>>
+  byStatus: Record<AlertStatus, number>
+  byZone: { label: string; count: number }[]
+  timeline: { date: string; count: number }[]
+}
 
 export interface Alert {
   id: number

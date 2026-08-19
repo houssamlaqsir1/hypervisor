@@ -983,17 +983,30 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 14px; }
 /* ─── Settings page ───────────────────────────────────── */
 .settings-page .page-header { align-items: flex-start; }
 
+/*
+ * A short settings page reads better as one comfortable panel than as
+ * several narrow cards: with only a handful of switches, columns squeeze
+ * the descriptions into ragged two-word lines, and a card per category
+ * spends more height on borders and gaps than the grouping is worth —
+ * enough to push the last switch below the fold on a laptop. Capped at a
+ * readable measure and left-aligned with the page header above it.
+ */
 .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  align-items: stretch;
-}
-
-.settings-card {
   display: flex;
   flex-direction: column;
+  max-width: 760px;
 }
+
+.settings-grid > .settings-block { height: auto; }
+
+/* Section captions inside the panel: the divider above each one already
+   closes the previous group, so they carry no rule of their own. */
+.settings-block > .settings-group-label {
+  border-bottom: none;
+  padding: 13px 0 4px;
+}
+
+.settings-block > .settings-group-label:first-child { padding-top: 12px; }
 
 
 /* saved badge */
@@ -1044,8 +1057,8 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 14px; }
 .settings-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 13px 20px;
+  gap: 16px;
+  padding: 14px 20px;
   position: relative;
   transition: background 0.15s;
 }
@@ -1058,6 +1071,16 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 14px; }
   right: 20px;
   height: 1px;
   background: var(--border);
+}
+
+/*
+ * A break between sections has to read as heavier than a break between two
+ * rows of the same section, or the grouping is invisible. Row dividers stay
+ * inset to the text; the one closing a section runs the full width.
+ */
+.settings-row:has(+ .settings-group-label)::after {
+  left: 0;
+  right: 0;
 }
 
 .settings-row:hover { background: var(--panel-2); }
@@ -1074,8 +1097,59 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 14px; }
 }
 
 .settings-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 3px; }
-.settings-row-label { font-size: 14px; font-weight: 500; color: var(--text); }
-.settings-row-desc  { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+.settings-row-label { font-size: 14.5px; font-weight: 500; color: var(--text); }
+.settings-row-desc  { font-size: 12.5px; color: var(--text-dim); line-height: 1.45; }
+
+/*
+ * Live status under a switch — whether the browser granted permission,
+ * the coordinates currently being tracked, and so on. Without it an
+ * operator cannot tell a working toggle from a broken one, since the
+ * browser's own prompt appears at most once ever.
+ */
+.settings-row-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-row-note::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.settings-row-note--ok   { color: var(--success); }
+.settings-row-note--warn { color: var(--danger); }
+
+/* Dropdown control for settings that pick a value rather than flip a flag. */
+.settings-select {
+  flex-shrink: 0;
+  min-width: 132px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.settings-select:hover { border-color: var(--accent); }
+
+.settings-select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 
 /* ── Toggle switch ──────────────────────────────────────── */
 .settings-toggle {
@@ -1278,3 +1352,413 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 14px; }
   background: rgba(74,222,128,0.12);
   border-color: rgba(74,222,128,0.25);
 }
+
+/* The light-theme status colours are too dark to read on the dark panels. */
+.dark-mode .settings-row-note--ok   { color: #34d399; }
+.dark-mode .settings-row-note--warn { color: #f87171; }
+
+/* ─── login page ──────────────────────────────────────── */
+.login-page {
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(37,99,235,0.12), transparent),
+    var(--bg);
+}
+
+/* Floating bubbles — same drift animation as the sidebar, accent-tinted so
+   they read on the light login background. */
+.login-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.07);
+  pointer-events: none;
+  animation: bubble-drift 8s ease-in-out infinite;
+}
+.login-bubble--1 { width: 320px; height: 320px; top: -100px;  left: -80px;  animation-duration: 10s; animation-delay: 0s;  }
+.login-bubble--2 { width: 220px; height: 220px; bottom: -80px; right: -60px; animation-duration: 12s; animation-delay: -3s; }
+.login-bubble--3 { width: 160px; height: 160px; top: 12%;      right: 14%;   animation-duration: 9s;  animation-delay: -5s; }
+.login-bubble--4 { width: 120px; height: 120px; bottom: 16%;   left: 12%;    animation-duration: 13s; animation-delay: -2s; }
+.login-bubble--5 { width: 80px;  height: 80px;  top: 60%;      left: 45%;    animation-duration: 11s; animation-delay: -6s; }
+
+.dark-mode .login-bubble { background: rgba(96, 143, 255, 0.09); }
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 28px;
+  box-shadow: 0 12px 40px rgba(37,99,235,0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.login-brand-icon { font-size: 32px; }
+.login-brand h1 { font-size: 20px; margin: 0; color: var(--text); }
+.login-brand p { font-size: 12px; margin: 0; color: var(--text-dim); }
+
+.login-field { display: flex; flex-direction: column; gap: 6px; }
+.login-field span { font-size: 13px; color: var(--text-dim); font-weight: 500; }
+.login-field input,
+.login-field select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+/*
+ * Native number spinners are suppressed wherever they still appear: they are
+ * the platform's own grey arrows, which match nothing else here. NumberField
+ * draws its own (below) so the step can suit the quantity — the browser's
+ * step for `step="any"` is 1, which on a latitude is a 111 km jump.
+ */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ── NumberField: input + custom steppers ───────────────── */
+/*
+ * The input keeps whatever styling its context already gives it
+ * (.login-field input, .admin-user-table td input), so the field looks
+ * identical to its text-only neighbours; the steppers are overlaid inside
+ * its right edge rather than replacing the frame.
+ */
+.number-field { position: relative; display: block; }
+.number-field input { width: 100%; padding-right: 30px; }
+
+.number-field-steppers {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  border-radius: 0 9px 9px 0;
+  overflow: hidden;
+  /* Clicks land on the buttons; the rest of the field stays reachable. */
+  pointer-events: none;
+}
+
+.number-field-steppers button {
+  pointer-events: auto;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.number-field-steppers button:first-child { border-bottom: 1px solid var(--border); }
+.number-field-steppers button:hover { background: var(--accent-soft); color: var(--accent); }
+.number-field-steppers button:active { background: var(--accent-glow); }
+
+.number-field--disabled .number-field-steppers { opacity: 0.4; }
+.number-field--disabled .number-field-steppers button { cursor: not-allowed; }
+
+/* Table rows use tighter inputs, so the steppers shrink to match. */
+.admin-user-table .number-field input { padding-right: 26px; }
+.admin-user-table .number-field-steppers { width: 20px; border-radius: 0 7px 7px 0; }
+
+.login-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+.login-field input:focus,
+.login-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.login-error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.login-card .btn { justify-content: center; padding: 11px; font-size: 14px; }
+
+.login-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  font-size: 12px;
+  color: var(--text-light);
+}
+.login-hint b { color: var(--text-dim); margin-bottom: 2px; }
+
+/* ─── sidebar user / logout ───────────────────────────── */
+.sidebar-user {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sidebar-user-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sidebar-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-role {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+.sidebar-user-role.role-ADMIN    { background: rgba(239,68,68,0.25);  color: #fecaca; }
+.sidebar-user-role.role-OPERATOR { background: rgba(245,158,11,0.25); color: #fde68a; }
+.sidebar-user-role.role-VIEWER   { background: rgba(148,163,184,0.25); color: #e2e8f0; }
+
+/* ─── admin: user management ──────────────────────────── */
+/*
+ * Fields align to the top of their row, not the bottom. With `end`, one
+ * taller cell (a field carrying a hint, a validation message) stretched its
+ * row and dragged its neighbours down to meet its baseline, so the form
+ * read as scattered rather than gridded.
+ */
+.admin-user-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px 14px;
+  align-items: start;
+}
+.admin-user-form .login-field { gap: 6px; }
+.admin-user-form .login-error { grid-column: 1 / -1; }
+.admin-user-form .btn { grid-column: 1 / -1; justify-self: start; padding: 9px 20px; }
+
+.admin-user-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-user-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.admin-user-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.admin-user-table tr:last-child td { border-bottom: none; }
+
+.admin-user-table td input,
+.admin-user-table td select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.admin-user-table td select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+.admin-user-table td input:focus,
+.admin-user-table td select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ─── admin: cameras & zones ──────────────────────────── */
+.admin-coord-pair { display: flex; gap: 6px; }
+.admin-coord-pair input { min-width: 0; }
+
+.admin-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.admin-inline-check input { width: auto !important; }
+
+.zone-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.zone-type-badge.zt-RESTRICTED { background: var(--danger-soft); color: var(--danger); }
+.zone-type-badge.zt-TRACK      { background: rgba(245,158,11,0.16); color: var(--warn); }
+.zone-type-badge.zt-STATION    { background: var(--accent-soft); color: var(--accent); }
+.zone-type-badge.zt-NORMAL     { background: #f1f5f9; color: #64748b; }
+
+.dark-mode .zone-type-badge.zt-NORMAL { background: rgba(148,163,184,0.16); color: #cbd5e1; }
+
+/* ─── analytics ───────────────────────────────────────── */
+.analytics-toolbar { display: flex; gap: 10px; align-items: center; }
+.analytics-window { display: flex; gap: 4px; }
+
+.analytics-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.analytics-kpi { padding: 16px 18px; }
+.analytics-kpi h3 { font-size: 10px; }
+.analytics-kpi .value { font-size: 26px; margin-top: 6px; }
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .analytics-kpis { grid-template-columns: repeat(2, 1fr); }
+  .analytics-grid { grid-template-columns: 1fr; }
+}
+
+/* timeline chart */
+.analytics-timeline { width: 100%; height: auto; display: block; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-axis-label { fill: var(--text-light); font-size: 10px; }
+.chart-area { fill: var(--accent); opacity: 0.12; }
+.chart-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-dot { fill: var(--accent); stroke: var(--panel); stroke-width: 1; }
+
+/* horizontal bar lists */
+.bar-list { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: 140px 1fr 40px; gap: 10px; align-items: center; }
+.bar-label {
+  font-size: 13px; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bar-track { background: var(--panel-2); border-radius: 6px; height: 12px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 6px; min-width: 3px; transition: width 0.3s; }
+.bar-value { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
+
+.dark-mode .chart-dot { stroke: var(--panel); }
+.dark-mode .bar-track { background: #1a2740; }
+
+/* ─── alert toasts (new-alert notifications) ──────────── */
+/* sonner positions/animates the toasts; these classes style the content
+   inside each toast so it matches the app's theme (unstyled Toaster). */
+.toast {
+  width: 356px;
+  max-width: calc(100vw - 40px);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+  cursor: pointer;
+}
+.toast:hover { box-shadow: 0 10px 32px rgba(0,0,0,0.24); }
+
+.toast.sev-LOW      { border-left-color: #94a3b8; }
+.toast.sev-MEDIUM   { border-left-color: var(--warn); }
+.toast.sev-HIGH     { border-left-color: var(--danger); }
+.toast.sev-CRITICAL { border-left-color: var(--critical); }
+
+.toast-sev {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.toast.sev-LOW      .toast-sev { background: #f1f5f9; color: #64748b; }
+.toast.sev-MEDIUM   .toast-sev { background: var(--warn-soft); color: var(--warn); }
+.toast.sev-HIGH     .toast-sev { background: var(--danger-soft); color: var(--danger); }
+.toast.sev-CRITICAL .toast-sev { background: #fef2f2; color: var(--critical); }
+
+.toast-body { display: flex; flex-direction: column; min-width: 0; }
+.toast-body strong { font-size: 13px; font-weight: 600; color: var(--text); }
+.toast-body small {
+  font-size: 12px; color: var(--text-dim); margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 2px;
+  align-self: flex-start;
+}
+.toast-close:hover { color: var(--text); }
+
+.dark-mode .toast { box-shadow: 0 8px 28px rgba(0,0,0,0.5); }
+.dark-mode .toast.sev-LOW      .toast-sev { background: #1e293b; color: #cbd5e1; }
+.dark-mode .toast.sev-CRITICAL .toast-sev { background: rgba(153,27,27,0.25); color: #fca5a5; }

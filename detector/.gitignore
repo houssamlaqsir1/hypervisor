@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+# YOLO weights are downloaded on first run — don't commit them.
+*.pt
+runs/
