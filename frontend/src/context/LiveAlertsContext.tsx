@@ -12,6 +12,7 @@ import SockJS from 'sockjs-client'
 import type { Alert } from '../types/api'
 import { WS_URL } from '../api/client'
 import { markSeenSilently } from '../lib/alertSeenLog'
+import { pushFrame } from '../lib/detectionFeed'
 
 export type ConnectionState = 'connecting' | 'open' | 'closed'
 
@@ -97,6 +98,19 @@ export function LiveAlertsProvider({ children }: { children: ReactNode }) {
             })
           } catch (e) {
             console.warn('bad alert payload', e)
+          }
+        })
+
+        // Per-frame detection boxes for the Live Watch overlay. Carried on
+        // this same connection rather than a second one — the single shared
+        // socket is a deliberate choice (see above) — but kept out of React
+        // state entirely: these arrive twice a second and are consumed by a
+        // canvas, not by rendering.
+        client.subscribe('/topic/detections', (msg) => {
+          try {
+            pushFrame(JSON.parse(msg.body))
+          } catch {
+            /* a dropped overlay frame is invisible; never surface it */
           }
         })
       },

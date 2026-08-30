@@ -26,6 +26,33 @@ const NAV: { to: string; labelKey: string; icon: string; end?: boolean; min?: Ro
   { to: '/admin/zones', labelKey: 'nav.zones', icon: '🗺', min: 'ADMIN' },
 ]
 
+/**
+ * The three seeded demo accounts carry a job title in their `fullName`
+ * rather than a person's name, so they should follow the interface
+ * language. Matched here against both spellings, since the accounts were
+ * originally seeded in French and existing databases still hold those rows.
+ *
+ * Anything else is a real user's name and is shown exactly as entered — a
+ * name is not a translatable string.
+ */
+const SEEDED_JOB_TITLES: Record<string, string> = {
+  'administrateur technique': 'actor.ADMIN',
+  'opérateur de supervision': 'actor.OPERATOR',
+  'responsable sécurité': 'actor.VIEWER',
+  'technical administrator': 'actor.ADMIN',
+  'supervision operator': 'actor.OPERATOR',
+  'security manager': 'actor.VIEWER',
+}
+
+function displayName(
+  fullName: string | null | undefined,
+  username: string,
+  t: (key: string) => string,
+): string {
+  const key = SEEDED_JOB_TITLES[(fullName ?? '').trim().toLowerCase()]
+  return key ? t(key) : (fullName || username)
+}
+
 export function Sidebar({ wsState }: Props) {
   const t = useT()
   const { cameras } = useLiveCameras()
@@ -85,7 +112,7 @@ export function Sidebar({ wsState }: Props) {
           <div className="sidebar-user">
             <div className="sidebar-user-info">
               <span className="sidebar-user-name">
-                {user.fullName || user.username}
+                {displayName(user.fullName, user.username, t)}
               </span>
               <span className={`sidebar-user-role role-${user.role}`}>
                 {t(`role.${user.role}`)}

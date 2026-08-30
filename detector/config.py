@@ -30,13 +30,16 @@ def _i(name: str, default: int) -> int:
 # ── Where the video comes from ────────────────────────────────────────
 # MediaMTX re-publishes the Larix RTMP push on RTSP (default port 8554).
 # The path ("iphone") is whatever stream key Larix is configured with.
-STREAM_URL: str = os.getenv("STREAM_URL", "rtsp://127.0.0.1:8554/iphone")
+STREAM_URL: str = os.getenv("STREAM_URL", "rtsp://127.0.0.1:8554/live/iphone")
 
 # ── Where detections go ───────────────────────────────────────────────
 # The existing ingestion endpoint — unchanged contract, so the whole
 # correlation/severity/alert pipeline downstream works as-is.
 API_BASE: str = os.getenv("HYPERVISOR_API", "http://127.0.0.1:8080")
 INGEST_PATH: str = "/api/live/webcam"
+# Per-frame boxes for the operator's video overlay. Broadcast and discarded
+# by the backend — never persisted, never correlated.
+OVERLAY_PATH: str = "/api/live/detections"
 
 # Must match a camera registered in the hypervisor (see CameraSeedLoader /
 # the admin Cameras page) so the backend can geolocate its events.

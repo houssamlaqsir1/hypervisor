@@ -32,7 +32,10 @@ public class SeedDataLoader implements CommandLineRunner {
                         .name("Rabat Agdal Platform")
                         .type(ZoneType.STATION)
                         .description("Passenger platform - Rabat Agdal (live camera site)")
-                        .centerLat(34.0075).centerLon(-6.8533).radiusM(120.0)
+                        // Surveyed on site at ONCF Rabat Agdal — this is where
+                        // CAM-LIVE-1 actually stands, so every event it reports
+                        // lands in this zone (see CameraSeedLoader).
+                        .centerLat(34.00461).centerLon(-6.85291).radiusM(120.0)
                         .build(),
                 Zone.builder()
                         .name("Casa-Voyageurs Platform")

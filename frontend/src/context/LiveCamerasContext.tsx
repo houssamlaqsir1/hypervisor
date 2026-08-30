@@ -32,10 +32,14 @@ export interface CameraConfig {
 }
 
 function buildDefaultCameras(): CameraConfig[] {
+  // "live/iphone", not "iphone" — Larix's own RTMP URL validator requires the
+  // rtmp://server/application/streamKey shape (two segments) and rejects a
+  // single-segment path, so the phone publishes to .../live/iphone. MediaMTX
+  // re-publishes HLS under that same path (see mediamtx.yml).
   const hlsUrl =
     typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:8888/iphone/index.m3u8`
-      : 'http://localhost:8888/iphone/index.m3u8'
+      ? `${window.location.protocol}//${window.location.hostname}:8888/live/iphone/index.m3u8`
+      : 'http://localhost:8888/live/iphone/index.m3u8'
   return [
     {
       key: 'cam-1',
@@ -71,6 +75,15 @@ interface LiveCamerasContextValue {
    * in the operator preview pane via {@code captureStream()}.
    */
   getVideoElement: (cameraKey: string) => HTMLVideoElement | null
+  /**
+   * How far behind live this camera's preview currently is, in seconds.
+   *
+   * HLS is buffered, so what the operator sees happened a moment ago. The
+   * detection overlay needs this to pick the boxes belonging to the frame
+   * on screen rather than the newest ones, which describe a moment the
+   * viewer has not reached yet.
+   */
+  getLatencySec: (cameraKey: string) => number
 }
 
 const LiveCamerasContext = createContext<LiveCamerasContextValue | null>(null)
@@ -201,6 +214,12 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
             lowLatencyMode: true,
             manifestLoadingTimeOut: 25_000,
             fragLoadingTimeOut: 25_000,
+            // hls.js keeps its default distance from the live edge on
+            // purpose. Pulling it closer (liveSyncDuration) was tried and
+            // made the preview stutter and freeze on domestic Wi-Fi; a
+            // steady picture a few seconds behind is the better trade for
+            // supervision. Detection is unaffected either way — the
+            // detector reads RTSP directly, not this buffered stream.
           })
           hlsRefs.current[key] = hls
           hls.loadSource(url)
@@ -344,6 +363,23 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
     [],
   )
 
+  const getLatencySec = useCallback((cameraKey: string) => {
+    // hls.js reports true live latency only in low-latency mode with a
+    // server sending parts. Where it can't, fall back to the distance from
+    // the playback position to the end of what has been buffered, which is
+    // the same quantity measured a cruder way.
+    const hls = hlsRefs.current[cameraKey]
+    if (hls && Number.isFinite(hls.latency) && hls.latency > 0) return hls.latency
+
+    const video = videoRefs.current[cameraKey]
+    if (video && video.buffered.length > 0) {
+      const edge = video.buffered.end(video.buffered.length - 1)
+      const behind = edge - video.currentTime
+      if (Number.isFinite(behind) && behind >= 0) return behind
+    }
+    return 0
+  }, [])
+
   const camerasList = useMemo(
     () => CAMERAS.map((c) => runtimes[c.key]).filter(Boolean),
     [runtimes],
@@ -355,8 +391,9 @@ export function LiveCamerasProvider({ children }: ProviderProps) {
       zones,
       setCameraEnabled,
       getVideoElement,
+      getLatencySec,
     }),
-    [camerasList, zones, setCameraEnabled, getVideoElement],
+    [camerasList, zones, setCameraEnabled, getVideoElement, getLatencySec],
   )
 
   return (

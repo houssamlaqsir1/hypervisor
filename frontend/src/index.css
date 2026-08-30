@@ -876,6 +876,64 @@ button { font-family: inherit; cursor: pointer; }
 .webcam-overlay  { pointer-events: none; }
 .webcam-overlay--hidden { display: none; }
 
+/* ─── Live detection read-out ──────────────────────────── */
+/* One line per object the detector currently sees, beneath the preview. */
+.detection-list { margin-top: 8px; }
+
+.detection-list-title {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+}
+
+.detection-list-empty { font-size: 12px; color: var(--text-light); }
+
+.detection-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  /* A crowded platform is legitimately a long list; cap it and scroll
+     rather than pushing the rest of the card off screen. */
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.detection-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border-left: 2px solid var(--accent);
+}
+
+/* An object on the rails is the one worth spotting in a long list. */
+.detection-list li.is-fouling {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.detection-label { color: var(--text); font-weight: 500; }
+.detection-confidence { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.detection-track {
+  margin-left: auto;
+  color: var(--danger);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dark-mode .detection-list li.is-fouling { border-left-color: #f87171; }
+.dark-mode .detection-track { color: #f87171; }
+
 .webcam-placeholder {
   position: absolute;
   inset: 0;
@@ -1440,6 +1498,41 @@ input[type='number']::-webkit-outer-spin-button,
 input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* ── Password reveal ────────────────────────────────────── */
+/*
+ * The eye sits inside the field's right edge rather than beside it, so the
+ * input keeps the full width and alignment of every other field on the form.
+ */
+.password-field { position: relative; display: block; }
+.password-field input { width: 100%; padding-right: 42px; }
+
+.password-reveal {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.password-reveal:hover { color: var(--accent); background: var(--accent-soft); }
+
+.password-reveal:focus-visible {
+  outline: none;
+  color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 /* ── NumberField: input + custom steppers ───────────────── */

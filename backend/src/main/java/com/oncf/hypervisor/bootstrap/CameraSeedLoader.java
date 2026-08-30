@@ -44,7 +44,7 @@ public class CameraSeedLoader implements CommandLineRunner {
                         .cameraId("CAM-LIVE-1")
                         .name("Live demo feed")
                         .site("Rabat Agdal")
-                        .latitude(34.0075).longitude(-6.8533).elevationM(0.0)
+                        .latitude(34.00461).longitude(-6.85291).elevationM(0.0)
                         .active(true).createdAt(now).build(),
                 Camera.builder()
                         .cameraId("CAM-CASA-VOY-01")

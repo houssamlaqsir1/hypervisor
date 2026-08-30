@@ -146,6 +146,12 @@ def main() -> None:
             person_boxes = [bbox for name, _, bbox in detections if name == "person"]
             person_count = len(person_boxes)
 
+            # Boxes for the operator's video overlay, collected across the
+            # whole frame and sent once below. Built even when a detection is
+            # throttled out of the event log: the overlay needs every frame,
+            # the alert log deliberately does not.
+            overlay: list[dict] = []
+
             for coco_name, confidence, bbox in detections:
                 x1, y1, x2, y2 = bbox
                 width, height = x2 - x1, y2 - y1
@@ -163,6 +169,21 @@ def main() -> None:
                 overlap = (
                     track_zone.overlap_fraction(bbox, polygon_px) if polygon_px else None
                 )
+
+                # Record it for the overlay before the post throttle below can
+                # skip this detection: a box the operator can see on screen
+                # should be drawn every frame, even while the event log is
+                # deliberately staying quiet about it.
+                overlay.append({
+                    "label": mapping.label,
+                    "confidence": round(confidence, 3),
+                    "x": round(x1, 1),
+                    "y": round(y1, 1),
+                    "w": round(width, 1),
+                    "h": round(height, 1),
+                    "trackOverlap": round(overlap, 3) if overlap is not None else None,
+                })
+
                 fouling = track_zone.band(overlap) if overlap is not None else 0
                 escalated = fouling > last_band.get(coco_name, 0)
 
@@ -219,6 +240,11 @@ def main() -> None:
                     confidence=confidence,
                     raw_payload=payload,
                 )
+
+            # One overlay message per analysed frame, including the empty one
+            # — that is what clears the last boxes off the operator's screen
+            # when everybody walks out of shot.
+            publisher.publish_frame(overlay, frame_w, frame_h)
 
             # ── fall heuristic on the tracked person ──────────────────
             if best_person is None:

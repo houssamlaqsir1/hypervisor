@@ -4,6 +4,7 @@ import com.oncf.hypervisor.domain.Zone;
 import com.oncf.hypervisor.domain.enums.CameraEventType;
 import com.oncf.hypervisor.dto.CameraEventRequest;
 import com.oncf.hypervisor.dto.CameraPositionRequest;
+import com.oncf.hypervisor.dto.LiveDetectionFrame;
 import com.oncf.hypervisor.dto.SigEventRequest;
 import com.oncf.hypervisor.exception.NotFoundException;
 import com.oncf.hypervisor.repository.ZoneRepository;
@@ -11,6 +12,7 @@ import com.oncf.hypervisor.service.CameraEventService;
 import com.oncf.hypervisor.service.SigEventService;
 import com.oncf.hypervisor.service.live.LivePositionService;
 import com.oncf.hypervisor.service.live.LiveStatusService;
+import com.oncf.hypervisor.websocket.DetectionBroadcaster;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -57,6 +59,7 @@ public class LiveController {
     private static final double DEFAULT_CONFIDENCE = 0.85;
 
     private final LiveStatusService status;
+    private final DetectionBroadcaster detectionBroadcaster;
     private final CameraEventService cameraEventService;
     private final SigEventService sigEventService;
     private final ZoneRepository zoneRepository;
@@ -104,6 +107,21 @@ public class LiveController {
         status.recordWebcamEvent();
         status.recordCameraEvent(req.cameraId(), webcamSource(req));
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    /**
+     * Per-frame detections for the operator's video overlay.
+     *
+     * <p>Relayed straight to the WebSocket topic and discarded — nothing is
+     * persisted and no correlation runs, unlike {@code /webcam} above. The
+     * two exist separately on purpose: an event is an incident record and is
+     * throttled to keep the log meaningful, while these frames are the raw
+     * per-frame boxes an overlay needs to look continuous.
+     */
+    @PostMapping("/detections")
+    public ResponseEntity<Void> detections(@Valid @RequestBody LiveDetectionFrame frame) {
+        detectionBroadcaster.broadcast(frame);
+        return ResponseEntity.noContent().build();
     }
 
     /**

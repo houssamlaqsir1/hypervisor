@@ -3,6 +3,7 @@ import { listAlerts, getAlertStats } from '../api/alerts'
 import type { AlertStats } from '../types/api'
 import { AlertRow } from '../components/AlertRow'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
+import { useAuth } from '../context/AuthContext'
 import { useT } from '../lib/useT'
 
 const STAT_CARDS = [
@@ -50,6 +51,7 @@ const STAT_CARDS = [
 
 export function DashboardPage() {
   const t = useT()
+  const { user } = useAuth()
   const [stats, setStats] = useState<AlertStats | null>(null)
   const [loading, setLoading] = useState(true)
   const { alerts, seedAlerts } = useLiveAlertsContext()
@@ -114,8 +116,15 @@ export function DashboardPage() {
     <>
       <div className="page-header">
         <div>
-          <h2>{t('dashboard.title')}</h2>
-          <p>{t('dashboard.subtitle')}</p>
+          {/*
+            The heading names the actor, not the page: an administrator was
+            previously greeted by "Operator Dashboard" while the sidebar
+            badge beside it read "Administrator". The viewer's variant also
+            says the view is read-only, which is a real difference — the
+            acknowledge and resolve controls are not rendered for that role.
+          */}
+          <h2>{t(`dashboard.title.${user?.role ?? 'OPERATOR'}`)}</h2>
+          <p>{t(`dashboard.subtitle.${user?.role ?? 'OPERATOR'}`)}</p>
         </div>
       </div>
 

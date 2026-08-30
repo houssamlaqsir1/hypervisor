@@ -1,9 +1,12 @@
 # MediaMTX configuration for the ONCF hypervisor.
 #
-# Larix on the phone pushes RTMP to  rtmp://<host>:1935/iphone
+# Larix on the phone pushes RTMP to  rtmp://<host>:1935/live/iphone
+# ("live/iphone" rather than "iphone" alone because Larix's own URL
+# validator insists on the rtmp://server/application/streamKey shape —
+# app "live", stream key "iphone" — and rejects a single-segment path.)
 # MediaMTX then re-publishes that same stream as:
-#   • RTSP  rtsp://mediamtx:8554/iphone   → consumed by the YOLOv8 detector
-#   • HLS   http://<host>:8888/iphone     → consumed by the browser preview
+#   • RTSP  rtsp://mediamtx:8554/live/iphone   → consumed by the YOLOv8 detector
+#   • HLS   http://<host>:8888/live/iphone     → consumed by the browser preview
 #
 # One ingest, two consumers — the detector analyses the low-latency RTSP
 # feed while the operator watches the browser-friendly HLS one.
@@ -22,6 +25,12 @@ hlsAddress: :8888
 # The browser fetches HLS cross-origin from the frontend, so it needs CORS.
 hlsAllowOrigins: ['*']
 # Low-latency HLS keeps the operator preview close to real time.
+#
+# Seven segments is a deliberately generous playlist window. A smaller one
+# cuts the delay — a player sits a few segments back from the live edge —
+# but it was tried and the preview stuttered and froze on a domestic Wi-Fi
+# link. On a supervision feed a smooth picture a few seconds late is worth
+# more than a jerky one that is nearly live, so the buffer stays large.
 hlsVariant: lowLatency
 hlsSegmentCount: 7
 hlsSegmentDuration: 1s
@@ -33,7 +42,7 @@ srt: no
 paths:
   # The demo phone camera. `all_others` keeps additional cameras working
   # without a config change — publish to any path and it just appears.
-  iphone:
+  live/iphone:
     source: publisher
 
   all_others:

@@ -45,16 +45,18 @@ services:
     environment:
       # Service names, not localhost — inside the compose network
       # "localhost" would mean the detector's own container.
-      STREAM_URL: rtsp://mediamtx:8554/iphone
+      STREAM_URL: rtsp://mediamtx:8554/live/iphone
       HYPERVISOR_API: http://backend:8080
       CAMERA_ID: CAM-LIVE-1
       YOLO_MODEL: yolov8n.pt
-      # Where the rails are in this camera's frame, normalised to 0–1 —
-      # the usual trapezoid narrowing towards the horizon. Aim the phone,
-      # read the corners off the preview, adjust. Severity for an object on
-      # the track is graded from how much of it falls inside this shape
-      # (half or more = track blocked = CRITICAL). Remove the line to grade
-      # on detection confidence alone, as before.
+      # Optional: where the rails are in this camera's frame, normalised to
+      # 0-1. Left unset, the detector reports no track overlap and
+      # ObjectOnTrackRule grades severity on detection confidence alone.
+      #
+      # This is a declaration, not a detection — the detector never looks
+      # for rails in the picture, it measures how much of each object falls
+      # inside the shape given here. So it is only worth setting once a
+      # camera is genuinely aimed at track.
       TRACK_POLYGON: "0.28,1.0 0.44,0.55 0.58,0.55 0.80,1.0"
     depends_on:
       - mediamtx

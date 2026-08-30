@@ -27,6 +27,7 @@ class Publisher:
     def __init__(self) -> None:
         self._session = requests.Session()
         self._url = f"{config.API_BASE.rstrip('/')}{config.INGEST_PATH}"
+        self._overlay_url = f"{config.API_BASE.rstrip('/')}{config.OVERLAY_PATH}"
         self._consecutive_failures = 0
 
     def publish(
@@ -68,6 +69,38 @@ class Publisher:
                     exc,
                 )
             return False
+
+    def publish_frame(
+        self,
+        detections: list[dict[str, Any]],
+        frame_width: int,
+        frame_height: int,
+    ) -> None:
+        """
+        Sends one frame's boxes for the operator's video overlay.
+
+        Separate from :meth:`publish` and deliberately unthrottled: an event
+        is an incident record, rate-limited so a stationary scene doesn't
+        fill the alert log, whereas the overlay needs every frame or the
+        rectangles freeze and jump.
+
+        Nothing downstream depends on this arriving — the backend relays it
+        to a WebSocket topic and forgets it. So failures are swallowed
+        entirely, including the logging: a broken overlay must never add
+        noise to a log that also carries detection failures, and at this
+        call rate one warning per frame would bury everything else.
+        """
+        payload = {
+            "cameraId": config.CAMERA_ID,
+            "capturedAt": datetime.now(timezone.utc).isoformat(),
+            "frameWidth": frame_width,
+            "frameHeight": frame_height,
+            "detections": detections,
+        }
+        try:
+            self._session.post(self._overlay_url, json=payload, timeout=1.0)
+        except requests.RequestException:
+            pass  # overlay only; see docstring
 
     def close(self) -> None:
         self._session.close()

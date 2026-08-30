@@ -17,6 +17,8 @@ import {
 } from '../context/LiveCamerasContext'
 import { loadPrefs } from '../lib/prefs'
 import { useT } from '../lib/useT'
+import { framesAt } from '../lib/detectionFeed'
+import { DetectionList } from '../components/DetectionList'
 
 type GpsState = 'idle' | 'starting' | 'running' | 'error'
 
@@ -57,6 +59,7 @@ export function LiveWatchPage() {
     zones,
     setCameraEnabled,
     getVideoElement,
+    getLatencySec,
   } = useLiveCameras()
 
   /* ----------------------- preview selection ----------------------- */
@@ -105,22 +108,95 @@ export function LiveWatchPage() {
     }
   }, [selectedCamera, getVideoElement])
 
-  /* Keep the overlay canvas clear and correctly sized. Detection runs
-   * server-side in the YOLOv8 service now, so the browser never sees
-   * bounding boxes — there is nothing to draw here. The canvas is kept so
-   * the preview layout is unchanged and a future server-supplied overlay
-   * has somewhere to render. */
+  /*
+   * Detection overlay.
+   *
+   * Detection itself runs server-side in the YOLOv8 service, so the browser
+   * has no boxes of its own to draw. The detector instead publishes each
+   * analysed frame's boxes to `/topic/detections`, which the live-alerts
+   * socket buffers into `detectionFeed`; this loop reads from that buffer.
+   *
+   * Two details make the boxes actually land on the right pixels:
+   *
+   *  - the preview video is `object-fit: cover`, so it is scaled to fill and
+   *    cropped. Drawing in raw frame coordinates would put every box off by
+   *    the crop, so the same cover transform is recomputed here.
+   *  - HLS runs seconds behind live. The newest boxes describe a moment the
+   *    viewer has not reached, so the frame is chosen by the player's own
+   *    reported latency instead — boxes then sit on the people they were
+   *    measured from rather than racing ahead of them.
+   */
   useEffect(() => {
     const cam = selectedCamera
     const canvas = overlayCanvasRef.current
     if (!cam || !canvas) return
-    const hidden = getVideoElement(cam.key)
-    const w = hidden?.videoWidth || 640
-    const h = hidden?.videoHeight || 480
-    if (canvas.width !== w) canvas.width = w
-    if (canvas.height !== h) canvas.height = h
-    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
-  }, [selectedCamera, getVideoElement])
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    let raf = 0
+    const draw = () => {
+      raf = requestAnimationFrame(draw)
+
+      // Match the canvas bitmap to its displayed size, so one canvas unit is
+      // one CSS pixel and the cover maths below stays in one coordinate space.
+      const dpr = window.devicePixelRatio || 1
+      const cssW = canvas.clientWidth
+      const cssH = canvas.clientHeight
+      if (cssW === 0 || cssH === 0) return
+      if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) {
+        canvas.width = Math.round(cssW * dpr)
+        canvas.height = Math.round(cssH * dpr)
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, cssW, cssH)
+
+      if (cam.status !== 'running') return
+
+      const shownAtMs = Date.now() - getLatencySec(cam.key) * 1000
+      const frame = framesAt(cam.id, shownAtMs)
+      if (!frame || frame.frameWidth === 0 || frame.frameHeight === 0) return
+
+      // Replicate object-fit: cover — scale to fill, centre, let the
+      // overflow fall outside the box.
+      const scale = Math.max(cssW / frame.frameWidth, cssH / frame.frameHeight)
+      const offsetX = (cssW - frame.frameWidth * scale) / 2
+      const offsetY = (cssH - frame.frameHeight * scale) / 2
+
+      ctx.lineWidth = 2
+      ctx.font = '600 12px system-ui, sans-serif'
+      ctx.textBaseline = 'bottom'
+
+      for (const box of frame.detections) {
+        const x = offsetX + box.x * scale
+        const y = offsetY + box.y * scale
+        const w = box.w * scale
+        const h = box.h * scale
+
+        // Colour carries the same meaning as the alert severity it would
+        // produce: red once the object is squarely on the rails, amber while
+        // it is only clipping them, neutral when it is clear of the track.
+        const overlap = box.trackOverlap
+        const colour =
+          overlap != null && overlap >= 0.5 ? '#ef4444'
+            : overlap != null && overlap >= 0.02 ? '#f59e0b'
+              : '#3b82f6'
+
+        ctx.strokeStyle = colour
+        ctx.strokeRect(x, y, w, h)
+
+        const caption = `${box.label} ${Math.round(box.confidence * 100)}%`
+        const textW = ctx.measureText(caption).width
+        ctx.fillStyle = colour
+        ctx.fillRect(x, Math.max(0, y - 16), textW + 8, 16)
+        ctx.fillStyle = '#0b1220'
+        ctx.fillText(caption, x + 4, Math.max(14, y - 2))
+      }
+    }
+
+    raf = requestAnimationFrame(draw)
+    return () => cancelAnimationFrame(raf)
+  }, [selectedCamera, getLatencySec])
 
   /* ---------------------------- aggregates -------------------------- */
 
@@ -307,6 +383,20 @@ export function LiveWatchPage() {
               </div>
             )}
           </div>
+
+          {/* Directly under the stream, and in its own block rather than
+              nested in the muted caption below: what the camera can see
+              right now belongs beside the picture, and nesting it in that
+              caption would inherit the dimmed, shrunken text and read as
+              part of the grey footnote rather than as live data. */}
+          {selectedCamera && (
+            <DetectionList
+              cameraId={selectedCamera.id}
+              cameraKey={selectedCamera.key}
+              active={selectedCamera.status === 'running'}
+              getLatencySec={getLatencySec}
+            />
+          )}
 
           {selectedCamera && (
             <div className="muted small" style={{ marginTop: 8 }}>

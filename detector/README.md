@@ -53,7 +53,7 @@ Expected output:
 
 ```
 Camera id : CAM-LIVE-1
-Stream    : rtsp://127.0.0.1:8554/iphone
+Stream    : rtsp://127.0.0.1:8554/live/iphone
 Hypervisor: http://127.0.0.1:8080/api/live/webcam
 Loading model yolov8n.pt …
 Model ready.
@@ -76,7 +76,7 @@ All settings are environment variables (see `.env.example`):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `STREAM_URL` | `rtsp://127.0.0.1:8554/iphone` | MediaMTX stream to analyse |
+| `STREAM_URL` | `rtsp://127.0.0.1:8554/live/iphone` | MediaMTX stream to analyse |
 | `HYPERVISOR_API` | `http://127.0.0.1:8080` | Backend base URL |
 | `CAMERA_ID` | `CAM-LIVE-1` | Must be a registered camera |
 | `YOLO_MODEL` | `yolov8n.pt` | Model file, or your fine-tuned `.pt` |
@@ -174,7 +174,7 @@ class for (weapons, fire/smoke, railway-specific hazards):
 ## Troubleshooting
 
 **"Stream unavailable — retrying"** — MediaMTX isn't running, or Larix isn't
-publishing. Verify the stream plays: `ffplay rtsp://127.0.0.1:8554/iphone`.
+publishing. Verify the stream plays: `ffplay rtsp://127.0.0.1:8554/live/iphone`.
 
 **"Ingest failed"** — the backend isn't up on `:8080`, or `CAMERA_ID` isn't
 registered (check admin → Cameras).
