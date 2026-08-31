@@ -14,6 +14,10 @@ spring:
       maximum-pool-size: 5
       connection-timeout: 20000
 
+  # Hibernate derives the schema from the JPA entity classes and applies
+  # entity-level additions at startup. Fine while the data model is still
+  # moving; a production deployment would put the schema under explicit
+  # version control and run with ddl-auto: validate instead.
   jpa:
     hibernate:
       ddl-auto: update
@@ -24,9 +28,6 @@ spring:
         format_sql: true
         jdbc:
           time_zone: UTC
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
 
 server:
   port: ${SERVER_PORT:8080}
