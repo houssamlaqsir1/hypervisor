@@ -57,7 +57,16 @@ services:
       # for rails in the picture, it measures how much of each object falls
       # inside the shape given here. So it is only worth setting once a
       # camera is genuinely aimed at track.
-      TRACK_POLYGON: "0.28,1.0 0.44,0.55 0.58,0.55 0.80,1.0"
+      # Covers almost the whole frame, which is correct for the current test
+      # setup: the camera is pointed at photographs that are themselves
+      # railway scenes, so every part of the view genuinely is track. A
+      # vehicle anywhere in the picture is on the rails, and grades CRITICAL.
+      #
+      # For a camera aimed at a real scene, replace this with the four
+      # corners of the actual track as it appears in the frame — typically a
+      # trapezoid narrowing towards the horizon, e.g.
+      # "0.28,1.0 0.44,0.55 0.58,0.55 0.80,1.0".
+      TRACK_POLYGON: "0.03,0.05 0.97,0.05 0.97,0.97 0.03,0.97"
     depends_on:
       - mediamtx
       - backend
