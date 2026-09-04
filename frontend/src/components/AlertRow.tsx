@@ -4,6 +4,7 @@ import { acknowledgeAlert, resolveAlert } from '../api/alerts'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
 import { useAuth } from '../context/AuthContext'
 import type { Alert, AlertDetails } from '../types/api'
+import { IconCheck, IconCheckCircle, IconNavigation } from './icons'
 
 interface Props {
   alert: Alert
@@ -175,17 +176,28 @@ export function AlertRow({ alert }: Props) {
         </span>
         <time>{ts}</time>
       </div>
+      {/*
+        The three controls sit on one line under the message rather than
+        stacked in a column of their own. Stacked, they set the height of
+        every row to the height of its tallest control — so a one-line
+        alert took three lines of space — and put the irreversible action
+        directly below where the pointer already was.
+
+        Order runs from least to most consequential, left to right, and
+        only the step that actually closes the incident is filled in.
+      */}
       <div className="alert-row-actions">
         {hasLocation && (
           <button
             type="button"
-            className="btn secondary btn-sm"
+            className="btn ghost btn-sm"
             title={t('alert.mapTitle')}
             onClick={() =>
               navigate(`/map3d?lat=${alert.latitude}&lon=${alert.longitude}`)
             }
           >
-            🗺 {t('dashboard.map')}
+            <IconNavigation size={14} />
+            {t('dashboard.map')}
           </button>
         )}
         {canAct && alert.status === 'NEW' && (
@@ -195,6 +207,7 @@ export function AlertRow({ alert }: Props) {
             onClick={onAcknowledge}
             disabled={busy}
           >
+            <IconCheck size={14} />
             {t('dashboard.acknowledge')}
           </button>
         )}
@@ -205,6 +218,7 @@ export function AlertRow({ alert }: Props) {
             onClick={() => setShowNote(true)}
             disabled={busy}
           >
+            <IconCheckCircle size={14} />
             {t('dashboard.resolve')}
           </button>
         )}

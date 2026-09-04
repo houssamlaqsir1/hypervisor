@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { searchPlaces, type GeocodeResult } from '../api/geocode'
 import { loadPrefs } from '../lib/prefs'
+import { IconCrosshair, IconSearch } from './icons'
 
 export type MapSearchPick = GeocodeResult
 
@@ -114,17 +115,23 @@ export function MapSearchBar({ onPick, className, suggest = false, mapReadyHint 
   return (
     <div className={`map-search-bar ${className ?? ''}`}>
       <div className="map-search-row">
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void runSearch()
-          }}
-          placeholder="Search city, country, address…"
-          aria-label="Search map"
-          aria-busy={suggestLoading || searchLoading}
-        />
+        {/* The magnifier sits inside the field's leading edge, which is
+            where a search box is expected to declare itself; the button
+            beside it is then free to be the action. */}
+        <div className="map-search-field">
+          <IconSearch size={15} />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void runSearch()
+            }}
+            placeholder="Search city, country, address…"
+            aria-label="Search map"
+            aria-busy={suggestLoading || searchLoading}
+          />
+        </div>
         <button
           type="button"
           className="btn"
@@ -140,7 +147,7 @@ export function MapSearchBar({ onPick, className, suggest = false, mapReadyHint 
           aria-label="Go to my location"
           onClick={myLocation}
         >
-          ⊕
+          <IconCrosshair size={16} />
         </button>
       </div>
       {mapReadyHint && <p className="muted map-search-hint">{mapReadyHint}</p>}

@@ -17,39 +17,42 @@ import {
 } from '../context/LiveCamerasContext'
 import { loadPrefs } from '../lib/prefs'
 import { useT } from '../lib/useT'
+import type { Translate } from '../lib/i18n'
 import { framesAt } from '../lib/detectionFeed'
 import { DetectionList } from '../components/DetectionList'
+import { IconLive } from '../components/icons'
 
 type GpsState = 'idle' | 'starting' | 'running' | 'error'
 
 const STATUS_POLL_MS = 5000
 
-function statusLabel(c: CameraRuntime): string {
-  if (!c.enabled) return 'disabled'
+/** The word on a camera's state pill. */
+function statusLabel(c: CameraRuntime, t: Translate): string {
+  if (!c.enabled) return t('live.state.disabled')
   switch (c.status) {
     case 'running':
-      return 'live'
+      return t('live.state.live')
     case 'starting':
-      return 'connecting'
+      return t('live.state.connecting')
     case 'idle':
-      return 'idle'
+      return t('live.state.idle')
     case 'error':
-      return 'error'
+      return t('live.state.error')
   }
 }
 
-function relativeAgeMs(ts: number | null): string {
-  if (ts == null) return 'never'
+function relativeAgeMs(ts: number | null, t: Translate): string {
+  if (ts == null) return t('age.never')
   const diff = Math.max(0, Math.round((Date.now() - ts) / 1000))
-  if (diff < 5) return 'just now'
-  if (diff < 60) return `${diff}s ago`
-  if (diff < 3600) return `${Math.round(diff / 60)}m ago`
-  return `${Math.round(diff / 3600)}h ago`
+  if (diff < 5) return t('age.justNow')
+  if (diff < 60) return t('age.seconds', { n: diff })
+  if (diff < 3600) return t('age.minutes', { n: Math.round(diff / 60) })
+  return t('age.hours', { n: Math.round(diff / 3600) })
 }
 
-function relativeAgeISO(iso: string | null | undefined): string {
-  if (!iso) return 'never'
-  return relativeAgeMs(new Date(iso).getTime())
+function relativeAgeISO(iso: string | null | undefined, t: Translate): string {
+  if (!iso) return t('age.never')
+  return relativeAgeMs(new Date(iso).getTime(), t)
 }
 
 export function LiveWatchPage() {
@@ -262,12 +265,12 @@ export function LiveWatchPage() {
     if (gpsState === 'running' || gpsState === 'starting') return
     // Geolocation is consented to once, in Settings.
     if (!loadPrefs().location_tracking) {
-      setGpsError('Location tracking is off — enable it in Settings first.')
+      setGpsError(t('live.gpsOff'))
       setGpsState('error')
       return
     }
     if (!('geolocation' in navigator)) {
-      setGpsError('Geolocation not supported in this browser')
+      setGpsError(t('live.gpsUnsupported'))
       setGpsState('error')
       return
     }
@@ -308,12 +311,12 @@ export function LiveWatchPage() {
         }
       },
       (err) => {
-        setGpsError(err.message || 'Geolocation error')
+        setGpsError(err.message || t('live.gpsError'))
         setGpsState('error')
       },
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 15_000 },
     )
-  }, [gpsState, selectedGpsZone, useDeviceGps])
+  }, [gpsState, selectedGpsZone, useDeviceGps, t])
 
   useEffect(() => () => stopGps(), [stopGps])
 
@@ -325,32 +328,37 @@ export function LiveWatchPage() {
         <div>
           <h2>{t('live.title')}</h2>
           <p>{t('live.subtitle')}</p>
-          <p className="muted small" style={{ marginTop: 4 }}>
-            <b>{activeCount}</b> camera{activeCount === 1 ? '' : 's'} live &middot;{' '}
-            <b>{status?.webcamEventsTotal ?? 0}</b> detection
-            {status?.webcamEventsTotal === 1 ? '' : 's'} ingested
-          </p>
+        </div>
+        {/*
+          The two running totals belong opposite the title, not under it:
+          under a subtitle three lines long they read as a fourth line of
+          prose, when they are the page's live numbers.
+        */}
+        <div className="page-actions">
+          <span className={`pill ${activeCount > 0 ? 'pill-running' : 'pill-idle'}`}>
+            {t('live.camerasLive', { live: activeCount, total: cameras.length })}
+          </span>
+          <span className="muted small tabular">
+            {t('live.ingested', { count: status?.webcamEventsTotal ?? 0 })}
+          </span>
         </div>
       </div>
 
       <div className="live-grid">
-        <div className="card live-card live-camera-merged">
+        <div className="card live-card">
           <div className="live-card-header">
-            <h3>Live camera</h3>
-            <span
-              className={`pill pill-${
-                selectedCamera?.status ?? 'idle'
-              }`}
-            >
+            <h3>{t('live.camera')}</h3>
+            <span className={`pill pill-${selectedCamera?.status ?? 'idle'}`}>
               {selectedCamera
-                ? `${selectedCamera.label.split('—')[0].trim()} · ${statusLabel(selectedCamera)}`
-                : 'no camera'}
+                ? `${selectedCamera.label.split('—')[0].trim()} · ${statusLabel(selectedCamera, t)}`
+                : t('live.noCamera')}
             </span>
           </div>
 
-          <div className="form-row">
-            <label>Preview</label>
+          <div className="form-row" style={{ marginBottom: 12 }}>
+            <label htmlFor="live-preview-camera">{t('live.preview')}</label>
             <select
+              id="live-preview-camera"
               value={selectedKey}
               onChange={(e) => setSelectedKey(e.target.value)}
             >
@@ -373,13 +381,16 @@ export function LiveWatchPage() {
             <canvas ref={overlayCanvasRef} className="webcam-overlay" />
             {selectedCamera && selectedCamera.status !== 'running' && (
               <div className="webcam-placeholder">
-                {!selectedCamera.enabled && 'Camera disabled below'}
-                {selectedCamera.enabled && selectedCamera.status === 'idle' &&
-                  'Waiting for stream…'}
-                {selectedCamera.enabled && selectedCamera.status === 'starting' &&
-                  'Connecting…'}
-                {selectedCamera.enabled && selectedCamera.status === 'error' &&
-                  (selectedCamera.error ?? 'Stream error')}
+                <IconLive size={26} />
+                <span>
+                  {!selectedCamera.enabled && t('live.cameraOff')}
+                  {selectedCamera.enabled && selectedCamera.status === 'idle' &&
+                    t('live.waitingStream')}
+                  {selectedCamera.enabled && selectedCamera.status === 'starting' &&
+                    t('live.connecting')}
+                  {selectedCamera.enabled && selectedCamera.status === 'error' &&
+                    (selectedCamera.error ?? t('live.streamError'))}
+                </span>
               </div>
             )}
           </div>
@@ -399,69 +410,60 @@ export function LiveWatchPage() {
           )}
 
           {selectedCamera && (
-            <div className="muted small" style={{ marginTop: 8 }}>
-              <div>
-                Detections ingested: <b>{status?.webcamEventsTotal ?? 0}</b>{' '}
-                &middot; last detection:{' '}
-                <b>
-                  {relativeAgeMs(
+            <div className="muted small" style={{ marginTop: 10 }}>
+              <div className="tabular">
+                {t('live.ingested', { count: status?.webcamEventsTotal ?? 0 })} &middot;{' '}
+                {t('live.lastDetection', {
+                  when: relativeAgeMs(
                     status?.lastWebcamEventAt
                       ? Date.parse(status.lastWebcamEventAt)
                       : null,
-                  )}
-                </b>
+                    t,
+                  ),
+                })}
               </div>
-              <div>
-                Analysed server-side by the YOLOv8 detector service.
-              </div>
+              <div>{t('live.analysedBy')}</div>
             </div>
           )}
         </div>
 
         <div className="card live-card">
           <div className="live-card-header">
-            <h3>AI cameras</h3>
-            <span className="pill pill-running">
-              {activeCount}/{cameras.length} live
+            <h3>{t('live.cameras')}</h3>
+            <span className={`pill ${activeCount > 0 ? 'pill-running' : 'pill-idle'}`}>
+              {t('live.camerasLive', { live: activeCount, total: cameras.length })}
             </span>
           </div>
-          <p className="muted small" style={{ marginTop: 0 }}>
-            Toggle a camera off to stop ingestion from it; bind to a zone so
-            every detection is reported at that zone's center for fusion. Both
-            settings persist across reloads.
+          <p className="muted small" style={{ margin: '0 0 12px' }}>
+            {t('live.camerasHelp')}
           </p>
 
           <div className="live-camera-list">
             {cameras.map((c) => (
               <div key={c.key} className="live-camera-row">
                 <div className="live-camera-row-head">
-                  <span className={`pill pill-${c.status}`}>
-                    {statusLabel(c)}
+                  <span className={`pill pill-${c.enabled ? c.status : 'disabled'}`}>
+                    {statusLabel(c, t)}
                   </span>
                   <span className="live-camera-row-name">{c.label}</span>
                 </div>
                 <div className="live-camera-row-stats muted small">
                   <span>
-                    stream <b>{statusLabel(c)}</b>
+                    {t('live.id')} <b className="tabular">{c.id}</b>
                   </span>
-                  <span>id <b>{c.id}</b></span>
-                  {c.error && (
-                    <span style={{ color: 'var(--danger)' }}>{c.error}</span>
-                  )}
+                  {c.error && <span style={{ color: 'var(--danger)' }}>{c.error}</span>}
                 </div>
                 <div className="live-camera-row-controls">
                   <label className="live-camera-toggle">
                     <input
                       type="checkbox"
                       checked={c.enabled}
-                      onChange={(e) =>
-                        setCameraEnabled(c.key, e.target.checked)
-                      }
-                    />{' '}
-                    enabled
+                      onChange={(e) => setCameraEnabled(c.key, e.target.checked)}
+                    />
+                    {t('live.enabled')}
                   </label>
-                  <span className="muted small" title="Configured once when the camera was registered — not picked here.">
-                    location: fixed at registration
+                  <span className="muted small" title={t('live.fixedLocationTitle')}>
+                    {t('live.fixedLocation')}
                   </span>
                 </div>
               </div>
@@ -471,85 +473,89 @@ export function LiveWatchPage() {
 
         <div className="card live-card">
           <div className="live-card-header">
-            <h3>SIG sources</h3>
-            <span className={`pill pill-${gpsState}`}>{gpsState}</span>
+            <h3>{t('live.sig')}</h3>
+            <span className={`pill pill-${gpsState}`}>
+              {t(`live.state.${gpsState === 'starting' ? 'connecting' : gpsState === 'running' ? 'live' : gpsState}`)}
+            </span>
           </div>
-          <div className="muted small" style={{ marginBottom: 10 }}>
-            <b>OpenSky Network</b> — backend polls aircraft over Morocco every
-            few seconds, no setup required.
+
+          <p className="muted small" style={{ margin: '0 0 10px' }}>
+            {t('live.openSky')}
+          </p>
+          <div className="status-row">
+            <span>{t('live.lastPoll')}</span>
+            <b>{relativeAgeISO(status?.lastOpenSkyPollAt, t)}</b>
           </div>
           <div className="status-row">
-            <span>Last OpenSky poll</span>
-            <b>{relativeAgeISO(status?.lastOpenSkyPollAt)}</b>
-          </div>
-          <div className="status-row">
-            <span>OpenSky tracks ingested</span>
+            <span>{t('live.tracksIngested')}</span>
             <b>{status?.openSkyEventsTotal ?? 0}</b>
           </div>
           {status?.lastOpenSkyError && (
-            <div className="muted small" style={{ color: 'var(--warn)' }}>
-              OpenSky error: {status.lastOpenSkyError}
+            <div className="muted small" style={{ color: 'var(--warn)', marginTop: 8 }}>
+              {t('live.openSkyError', { message: status.lastOpenSkyError })}
             </div>
           )}
 
           <hr className="divider" />
 
           <div className="form-row">
-            <label>GPS bound to zone</label>
+            <label htmlFor="gps-zone">{t('live.gpsZone')}</label>
             <select
+              id="gps-zone"
               value={gpsZoneId}
-              onChange={(e) =>
-                setGpsZoneId(e.target.value ? Number(e.target.value) : '')
-              }
+              onChange={(e) => setGpsZoneId(e.target.value ? Number(e.target.value) : '')}
             >
-              <option value="">(my real GPS only)</option>
+              <option value="">{t('live.gpsRealOnly')}</option>
               {zones.map((z) => (
                 <option key={z.id} value={z.id}>
-                  {z.name} — {z.type}
+                  {z.name} — {t(`zoneType.${z.type}`)}
                 </option>
               ))}
             </select>
           </div>
-          <div className="form-row">
-            <label>
-              <input
-                type="checkbox"
-                checked={useDeviceGps}
-                onChange={(e) => setUseDeviceGps(e.target.checked)}
-              />{' '}
-              Use my real device GPS
-            </label>
-          </div>
-          <div className="muted small" style={{ marginBottom: 10 }}>
-            When on, pushes a SIG event every ~5 s using browser geolocation.
-            When off, snaps to the selected zone center (handy when you want
-            to test fusion from a desk).
-          </div>
+          {/* Not a .form-row: that grid reserves a label column, and a
+              checkbox whose label is the whole control ends up with the box
+              stranded in it, above its own text. */}
+          <label className="live-camera-toggle" style={{ marginTop: 12 }}>
+            <input
+              type="checkbox"
+              checked={useDeviceGps}
+              onChange={(e) => setUseDeviceGps(e.target.checked)}
+            />
+            {t('live.gpsUseDevice')}
+          </label>
+          <p className="muted small" style={{ margin: '10px 0' }}>
+            {t('live.gpsHelp')}
+          </p>
           <div className="btn-row">
             {gpsState !== 'running' ? (
-              <button className="btn secondary" onClick={startGps}>
-                Start GPS streaming
+              <button type="button" className="btn secondary btn-sm" onClick={startGps}>
+                {t('live.gpsStart')}
               </button>
             ) : (
-              <button className="btn danger" onClick={stopGps}>
-                Stop GPS streaming
+              <button type="button" className="btn danger btn-sm" onClick={stopGps}>
+                {t('live.gpsStop')}
               </button>
             )}
           </div>
           {gpsError && (
-            <div className="muted small" style={{ color: 'var(--danger)' }}>
+            <div className="muted small" style={{ color: 'var(--danger)', marginTop: 8 }}>
               {gpsError}
             </div>
           )}
-          <div className="muted small">
-            GPS events posted this session: <b>{gpsPostedCount}</b>
+
+          <hr className="divider" />
+
+          <div className="status-row">
+            <span>{t('live.gpsPosted')}</span>
+            <b>{gpsPostedCount}</b>
           </div>
           <div className="status-row">
-            <span>Total camera AI events (all sessions)</span>
+            <span>{t('live.totalCameraEvents')}</span>
             <b>{status?.webcamEventsTotal ?? 0}</b>
           </div>
           <div className="status-row">
-            <span>Total GPS events (all sessions)</span>
+            <span>{t('live.totalGpsEvents')}</span>
             <b>{status?.gpsEventsTotal ?? 0}</b>
           </div>
         </div>

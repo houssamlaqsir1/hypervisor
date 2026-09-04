@@ -1,9 +1,23 @@
 import { NavLink } from 'react-router-dom'
+import type { ComponentType } from 'react'
 import type { ConnectionState } from '../context/LiveAlertsContext'
 import { useLiveCameras } from '../context/LiveCamerasContext'
 import { useAuth } from '../context/AuthContext'
 import type { Role } from '../types/api'
 import { useT } from '../lib/useT'
+import {
+  IconAnalytics,
+  IconBrand,
+  IconCamera,
+  IconDashboard,
+  IconGlobe,
+  IconHistory,
+  IconLive,
+  IconLogOut,
+  IconSettings,
+  IconUsers,
+  IconZones,
+} from './icons'
 
 interface Props {
   wsState: ConnectionState
@@ -14,16 +28,22 @@ interface Props {
  * Labels are translation keys rather than text, so the sidebar follows the
  * language switch like everything else.
  */
-const NAV: { to: string; labelKey: string; icon: string; end?: boolean; min?: Role }[] = [
-  { to: '/', labelKey: 'nav.dashboard', icon: '⊞', end: true },
-  { to: '/live', labelKey: 'nav.live', icon: '◉' },
-  { to: '/map3d', labelKey: 'nav.map3d', icon: '◈' },
-  { to: '/history', labelKey: 'nav.history', icon: '◷' },
-  { to: '/analytics', labelKey: 'nav.analytics', icon: '📊' },
-  { to: '/settings', labelKey: 'nav.settings', icon: '⚙' },
-  { to: '/admin/users', labelKey: 'nav.users', icon: '👤', min: 'ADMIN' },
-  { to: '/admin/cameras', labelKey: 'nav.cameras', icon: '🎥', min: 'ADMIN' },
-  { to: '/admin/zones', labelKey: 'nav.zones', icon: '🗺', min: 'ADMIN' },
+const NAV: {
+  to: string
+  labelKey: string
+  Icon: ComponentType<{ size?: number }>
+  end?: boolean
+  min?: Role
+}[] = [
+  { to: '/', labelKey: 'nav.dashboard', Icon: IconDashboard, end: true },
+  { to: '/live', labelKey: 'nav.live', Icon: IconLive },
+  { to: '/map3d', labelKey: 'nav.map3d', Icon: IconGlobe },
+  { to: '/history', labelKey: 'nav.history', Icon: IconHistory },
+  { to: '/analytics', labelKey: 'nav.analytics', Icon: IconAnalytics },
+  { to: '/settings', labelKey: 'nav.settings', Icon: IconSettings },
+  { to: '/admin/users', labelKey: 'nav.users', Icon: IconUsers, min: 'ADMIN' },
+  { to: '/admin/cameras', labelKey: 'nav.cameras', Icon: IconCamera, min: 'ADMIN' },
+  { to: '/admin/zones', labelKey: 'nav.zones', Icon: IconZones, min: 'ADMIN' },
 ]
 
 /**
@@ -64,15 +84,11 @@ export function Sidebar({ wsState }: Props) {
 
   return (
     <aside className="sidebar">
-      {/* decorative animated bubbles */}
-      <div className="sidebar-bubble sidebar-bubble--1" />
-      <div className="sidebar-bubble sidebar-bubble--2" />
-      <div className="sidebar-bubble sidebar-bubble--3" />
-      <div className="sidebar-bubble sidebar-bubble--4" />
-
       <div className="sidebar-inner">
         <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">📡</div>
+          <div className="sidebar-brand-mark">
+            <IconBrand size={20} />
+          </div>
           <div className="sidebar-brand-text">
             <h1>Hypervisor</h1>
             <p>{t('brand.subtitle')}</p>
@@ -83,9 +99,14 @@ export function Sidebar({ wsState }: Props) {
 
         <nav>
           {nav.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end}>
-              <span className="nav-icon">{item.icon}</span>
-              {t(item.labelKey)}
+            /* The label is hidden by CSS on a narrow viewport, where the
+               rail collapses to icons — so each link carries its name as a
+               title too, or the collapsed rail becomes nine mystery glyphs. */
+            <NavLink key={item.to} to={item.to} end={item.end} title={t(item.labelKey)}>
+              <span className="nav-icon">
+                <item.Icon size={18} />
+              </span>
+              <span className="nav-label">{t(item.labelKey)}</span>
             </NavLink>
           ))}
         </nav>
@@ -120,11 +141,12 @@ export function Sidebar({ wsState }: Props) {
             </div>
             <button
               type="button"
-              className="btn secondary btn-sm"
+              className="sidebar-signout"
               onClick={logout}
               title={t('nav.signOut')}
+              aria-label={t('nav.signOut')}
             >
-              {t('nav.signOut')}
+              <IconLogOut size={16} />
             </button>
           </div>
         )}

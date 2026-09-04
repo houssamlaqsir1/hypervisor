@@ -3,6 +3,7 @@ import { downloadAlertsCsv, getAnalytics } from '../api/analytics'
 import { extractApiError } from '../lib/apiError'
 import type { Analytics, AlertSeverity, AlertStatus } from '../types/api'
 import { useT } from '../lib/useT'
+import { IconAlertCircle, IconDownload } from '../components/icons'
 
 const WINDOWS = [7, 30, 90]
 
@@ -11,23 +12,18 @@ const SEVERITY_COLOR: Record<AlertSeverity, string> = {
   CRITICAL: 'var(--critical)',
   HIGH: 'var(--danger)',
   MEDIUM: 'var(--warn)',
-  LOW: '#94a3b8',
+  LOW: 'var(--neutral)',
 }
 
 const STATUS_ORDER: AlertStatus[] = ['NEW', 'ACKNOWLEDGED', 'RESOLVED']
 const STATUS_COLOR: Record<AlertStatus, string> = {
   NEW: 'var(--danger)',
   ACKNOWLEDGED: 'var(--warn)',
-  RESOLVED: '#16a34a',
-}
-const STATUS_LABEL: Record<AlertStatus, string> = {
-  NEW: 'New',
-  ACKNOWLEDGED: 'Acknowledged',
-  RESOLVED: 'Resolved',
+  RESOLVED: 'var(--success)',
 }
 
 /** Single-series area chart of alerts per day. No legend — the heading names it. */
-function TimelineChart({ data }: { data: { date: string; count: number }[] }) {
+function TimelineChart({ data, label }: { data: { date: string; count: number }[]; label: string }) {
   const W = 760
   const H = 200
   const PAD = { top: 12, right: 12, bottom: 24, left: 30 }
@@ -51,7 +47,7 @@ function TimelineChart({ data }: { data: { date: string; count: number }[] }) {
   const labelIdx = n <= 1 ? [0] : [0, Math.floor((n - 1) / 2), n - 1]
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="analytics-timeline" role="img" aria-label="Alerts per day">
+    <svg viewBox={`0 0 ${W} ${H}`} className="analytics-timeline" role="img" aria-label={label}>
       {ticks.map((t) => (
         <g key={t}>
           <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="chart-grid" />
@@ -62,7 +58,7 @@ function TimelineChart({ data }: { data: { date: string; count: number }[] }) {
       <path d={linePath} className="chart-line" />
       {data.map((d, i) => (
         <circle key={d.date} cx={x(i)} cy={y(d.count)} r={n > 45 ? 0 : 2.5} className="chart-dot">
-          <title>{d.date}: {d.count} alert{d.count === 1 ? '' : 's'}</title>
+          <title>{d.date} · {d.count}</title>
         </circle>
       ))}
       {labelIdx.map((i) => (
@@ -113,18 +109,31 @@ export function AnalyticsPage() {
     setLoading(true)
     getAnalytics(days)
       .then(setData)
-      .catch((e) => setError(extractApiError(e, 'Failed to load analytics')))
+      .catch((e) => setError(extractApiError(e, t('analytics.loadFailed'))))
       .finally(() => setLoading(false))
-  }, [days])
+  }, [days, t])
 
+  /*
+   * The API returns the alert type as its enum name (OBJECT_ON_TRACK).
+   * Underscores swapped for spaces still reads as a database column, and
+   * stays English in the French interface — so each one goes through the
+   * same translation table the alert feed already uses, and only falls
+   * back to the de-underscored name for a type this build does not know.
+   */
   const typeRows = useMemo(
     () =>
       data
         ? Object.entries(data.byType)
-            .map(([label, count]) => ({ label: label.replace(/_/g, ' '), count: count ?? 0 }))
+            .map(([type, count]) => {
+              const label = t(`alertType.${type}`)
+              return {
+                label: label === `alertType.${type}` ? type.replace(/_/g, ' ') : label,
+                count: count ?? 0,
+              }
+            })
             .sort((a, b) => b.count - a.count)
         : [],
-    [data],
+    [data, t],
   )
 
   const zoneRows = useMemo(() => data?.byZone.slice(0, 10) ?? [], [data])
@@ -134,7 +143,7 @@ export function AnalyticsPage() {
     try {
       await downloadAlertsCsv(days)
     } catch (e) {
-      setError(extractApiError(e, 'Export failed'))
+      setError(extractApiError(e, t('analytics.exportFailed')))
     } finally {
       setExporting(false)
     }
@@ -148,71 +157,84 @@ export function AnalyticsPage() {
           <p>{t('analytics.subtitle')}</p>
         </div>
         <div className="analytics-toolbar">
-          <div className="analytics-window">
+          {/*
+            One enclosure with one segment lit, rather than three loose
+            buttons: these are three settings of a single dial, and three
+            separate buttons left the operator to infer that from spacing.
+          */}
+          <div className="segmented" role="group" aria-label={t('analytics.window')}>
             {WINDOWS.map((w) => (
               <button
                 key={w}
                 type="button"
-                className={`btn btn-sm ${days === w ? '' : 'secondary'}`}
+                aria-pressed={days === w}
                 onClick={() => setDays(w)}
               >
-                {w}d
+                {t('analytics.days', { days: w })}
               </button>
             ))}
           </div>
           <button type="button" className="btn secondary btn-sm" onClick={onExport} disabled={exporting}>
-            {exporting ? 'Exporting…' : '⬇ Export CSV'}
+            <IconDownload size={14} />
+            {exporting ? t('analytics.exporting') : t('analytics.export')}
           </button>
         </div>
       </div>
 
-      {error && <p className="login-error">{error}</p>}
-      {loading && <p className="muted">Loading…</p>}
+      {error && (
+        <p className="login-error" role="alert">
+          <IconAlertCircle size={15} />
+          <span>{error}</span>
+        </p>
+      )}
+      {loading && <p className="muted">{t('common.loading')}</p>}
 
       {data && !loading && (
         <>
           <div className="analytics-kpis">
             <div className="card analytics-kpi">
-              <h3>Total ({data.windowDays}d)</h3>
+              <h3>{t('analytics.totalWindow', { days: data.windowDays })}</h3>
               <div className="value">{data.total}</div>
             </div>
             {SEVERITY_ORDER.map((s) => (
               <div className="card analytics-kpi" key={s}>
-                <h3 style={{ color: SEVERITY_COLOR[s] }}>{s}</h3>
+                <h3 style={{ color: SEVERITY_COLOR[s] }}>{t(`severity.${s}`)}</h3>
                 <div className="value">{data.bySeverity[s] ?? 0}</div>
               </div>
             ))}
           </div>
 
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h3 style={{ marginBottom: 12 }}>Alerts per day</h3>
-            <TimelineChart data={data.timeline} />
+          <div className="card" style={{ marginBottom: 14 }}>
+            <h3>{t('analytics.perDay')}</h3>
+            <TimelineChart data={data.timeline} label={t('analytics.perDay')} />
           </div>
 
           <div className="analytics-grid">
             <div className="card">
-              <h3 style={{ marginBottom: 14 }}>By type</h3>
-              <BarList rows={typeRows} />
+              <h3>{t('analytics.byType')}</h3>
+              <BarList rows={typeRows} empty={t('analytics.noData')} />
             </div>
             <div className="card">
-              <h3 style={{ marginBottom: 14 }}>By zone (top 10)</h3>
-              <BarList rows={zoneRows} />
+              <h3>{t('analytics.byZone')}</h3>
+              <BarList rows={zoneRows} empty={t('analytics.noData')} />
             </div>
             <div className="card">
-              <h3 style={{ marginBottom: 14 }}>By status</h3>
+              <h3>{t('analytics.byStatus')}</h3>
               <BarList
+                empty={t('analytics.noData')}
                 rows={STATUS_ORDER.map((s) => ({
-                  label: STATUS_LABEL[s],
+                  label: t(`status.${s}`),
                   count: data.byStatus[s] ?? 0,
                   color: STATUS_COLOR[s],
                 }))}
               />
             </div>
             <div className="card">
-              <h3 style={{ marginBottom: 14 }}>By severity</h3>
+              <h3>{t('analytics.bySeverity')}</h3>
               <BarList
+                empty={t('analytics.noData')}
                 rows={SEVERITY_ORDER.map((s) => ({
-                  label: s,
+                  label: t(`severity.${s}`),
                   count: data.bySeverity[s] ?? 0,
                   color: SEVERITY_COLOR[s],
                 }))}

@@ -9,6 +9,7 @@ import { LiveCamerasProvider } from './context/LiveCamerasContext'
 import { NotificationsProvider } from './context/NotificationsProvider'
 import { useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
+import { useT } from './lib/useT'
 import type { Role } from './types/api'
 
 const DashboardPage = lazy(() =>
@@ -45,6 +46,22 @@ function RequireRole({ min, children }: { min: Role; children: ReactNode }) {
   return hasRole(min) ? <>{children}</> : <Navigate to="/" replace />
 }
 
+/**
+ * Shown while a lazily-loaded route's chunk is in flight, and while the
+ * stored session is being checked at boot. Deliberately the same in both
+ * places: they are the same moment to the operator — the console has not
+ * finished appearing yet.
+ */
+function RouteLoading() {
+  const t = useT()
+  return (
+    <div className="route-loading">
+      <span className="spinner" aria-hidden />
+      <span>{t('common.loading')}</span>
+    </div>
+  )
+}
+
 function AuthedApp() {
   const { connectionState } = useLiveAlertsContext()
 
@@ -52,7 +69,7 @@ function AuthedApp() {
     <div className="app">
       <Sidebar wsState={connectionState} />
       <main className="main">
-        <Suspense fallback={<p className="muted">Loading page…</p>}>
+        <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/live" element={<LiveWatchPage />} />
@@ -96,7 +113,7 @@ function App() {
   const { user, ready } = useAuth()
 
   if (!ready) {
-    return <p className="muted" style={{ padding: 24 }}>Loading…</p>
+    return <RouteLoading />
   }
   if (!user) {
     return (

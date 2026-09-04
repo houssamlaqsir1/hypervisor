@@ -5,48 +5,33 @@ import { AlertRow } from '../components/AlertRow'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
 import { useAuth } from '../context/AuthContext'
 import { useT } from '../lib/useT'
+import {
+  IconAlertCircle,
+  IconAlertOctagon,
+  IconAlertTriangle,
+  IconBell,
+  IconCheckCircle,
+  IconInfo,
+} from '../components/icons'
 
+/**
+ * The five counters across the top of the console.
+ *
+ * Each one names a CSS variable rather than a literal colour, so the row
+ * follows the theme: the severity reds that read on a white page are too
+ * dark to see on the dark one, and were previously frozen into this file
+ * as hex values that only suited the light theme.
+ *
+ * Shape carries the severity as well as colour — octagon, triangle,
+ * circle, in that descending order of urgency — so the row still ranks
+ * correctly for an operator who cannot separate the reds from the ambers.
+ */
 const STAT_CARDS = [
-  {
-    key: 'total'    as const,
-    labelKey: 'dashboard.totalAlerts',
-    icon: '🔔',
-    iconBg: 'rgba(37,99,235,0.25)',
-    iconColor: '#3b82f6',
-    accent: '#3b82f6',
-  },
-  {
-    key: 'CRITICAL' as const,
-    labelKey: 'severity.CRITICAL',
-    icon: '🔴',
-    iconBg: 'rgba(185,28,28,0.25)',
-    iconColor: '#dc2626',
-    accent: '#dc2626',
-  },
-  {
-    key: 'HIGH'     as const,
-    labelKey: 'severity.HIGH',
-    icon: '🔥',
-    iconBg: 'rgba(239,68,68,0.2)',
-    iconColor: '#ef4444',
-    accent: '#ef4444',
-  },
-  {
-    key: 'MEDIUM'   as const,
-    labelKey: 'severity.MEDIUM',
-    icon: '⚠️',
-    iconBg: 'rgba(245,158,11,0.2)',
-    iconColor: '#f59e0b',
-    accent: '#f59e0b',
-  },
-  {
-    key: 'LOW'      as const,
-    labelKey: 'severity.LOW',
-    icon: 'ℹ️',
-    iconBg: 'rgba(99,102,241,0.2)',
-    iconColor: '#6366f1',
-    accent: '#6366f1',
-  },
+  { key: 'total'    as const, labelKey: 'dashboard.totalAlerts', Icon: IconBell,          accent: 'var(--accent)',   soft: 'var(--accent-soft)' },
+  { key: 'CRITICAL' as const, labelKey: 'severity.CRITICAL',     Icon: IconAlertOctagon,  accent: 'var(--critical)', soft: 'var(--danger-soft)' },
+  { key: 'HIGH'     as const, labelKey: 'severity.HIGH',         Icon: IconAlertTriangle, accent: 'var(--danger)',   soft: 'var(--danger-soft)' },
+  { key: 'MEDIUM'   as const, labelKey: 'severity.MEDIUM',       Icon: IconAlertCircle,   accent: 'var(--warn)',     soft: 'var(--warn-soft)' },
+  { key: 'LOW'      as const, labelKey: 'severity.LOW',          Icon: IconInfo,          accent: 'var(--neutral)',  soft: 'var(--neutral-soft)' },
 ]
 
 export function DashboardPage() {
@@ -133,31 +118,45 @@ export function DashboardPage() {
           <div
             key={c.key}
             className="dash-stat-card"
-            style={{ '--card-accent': c.accent } as React.CSSProperties}
+            style={
+              {
+                '--card-accent': c.accent,
+                '--card-accent-soft': c.soft,
+              } as React.CSSProperties
+            }
           >
-            <div className="dash-stat-top" />
-            <div className="dash-stat-body">
-              <div className="dash-stat-icon" style={{ background: c.iconBg }}>
-                <span>{c.icon}</span>
-              </div>
-              <div className="dash-stat-info">
-                <span className="dash-stat-value">{getValue(c.key)}</span>
-                <span className="dash-stat-label">{t(c.labelKey)}</span>
-              </div>
+            <div className="dash-stat-icon">
+              <c.Icon size={19} />
+            </div>
+            <div className="dash-stat-info">
+              <span className="dash-stat-value">{getValue(c.key)}</span>
+              <span className="dash-stat-label">{t(c.labelKey)}</span>
             </div>
           </div>
         ))}
       </div>
 
-      <h3>{t('dashboard.latest')}</h3>
+      <h3 className="section-title">
+        {t('dashboard.latest')}
+        {!loading && visibleAlerts.length > 0 && (
+          <span className="count">{visibleAlerts.length}</span>
+        )}
+      </h3>
 
       {loading && <p className="muted">{t('common.loading')}</p>}
-      {!loading && alerts.length === 0 && (
-        <p className="muted">{t('dashboard.empty')}</p>
+
+      {/* Nothing outstanding is the state this console spends most of its
+          time in, so it is drawn as a result rather than left as a bare
+          grey sentence floating where the feed should be. */}
+      {!loading && visibleAlerts.length === 0 && (
+        <div className="empty-state">
+          <IconCheckCircle size={26} />
+          <span>
+            {alerts.length === 0 ? t('dashboard.empty') : t('dashboard.allResolved')}
+          </span>
+        </div>
       )}
-      {!loading && alerts.length > 0 && visibleAlerts.length === 0 && (
-        <p className="muted">{t('dashboard.allResolved')}</p>
-      )}
+
       <div className="alert-list">
         {visibleAlerts.slice(0, 30).map((a) => (
           <AlertRow key={a.id} alert={a} />

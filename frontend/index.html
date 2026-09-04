@@ -4,13 +4,26 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hypervisor - Railway Alarm & Centralizer</title>
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
+    <meta
+      name="description"
+      content="ONCF railway surveillance console: live camera detection, alert correlation and incident history."
     />
+    <!--
+      Paints the browser's own chrome to match the console's two themes, so
+      the address bar on a tablet in a control room does not sit as a strip
+      of the operating system's default grey above a dark screen.
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f5f7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0f17" />
+    <title>Hypervisor — Railway Alarm &amp; Centralizer</title>
+    <!--
+      Inter is the interface typeface (imported by index.css). Preconnecting
+      lets the font request start during HTML parse rather than after the
+      stylesheet has been fetched and read, which is the difference between
+      the first paint being Inter and being a flash of the system font.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
   <body>
     <div id="root"></div>

@@ -34,6 +34,7 @@ import { getSig3dScene } from '../api/sig3d'
 import type { Alert, GeoJsonFeature, Sig3dResponse } from '../types/api'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
 import { MapSearchBar, type MapSearchPick } from '../components/MapSearchBar'
+import { IconChevronDown, IconChevronUp } from '../components/icons'
 
 const TOKEN = import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined
 
@@ -697,9 +698,7 @@ export function Map3DPage() {
                 title={filtersOpen ? 'Collapse' : 'Expand'}
                 onClick={() => setFiltersOpen((o) => !o)}
               >
-                <span className="map3d-hud-chevron" aria-hidden>
-                  {filtersOpen ? '▲' : '▼'}
-                </span>
+                {filtersOpen ? <IconChevronUp size={15} /> : <IconChevronDown size={15} />}
               </button>
             </div>
             {filtersOpen && (
@@ -819,9 +818,10 @@ export function Map3DPage() {
                 title={alertsPanelOpen ? 'Collapse' : 'Expand'}
                 onClick={() => setAlertsPanelOpen((o) => !o)}
               >
-                <span className="map3d-hud-chevron" aria-hidden>
-                  {alertsPanelOpen ? '▼' : '▲'}
-                </span>
+                {/* The alerts panel is anchored to the bottom edge, so its
+                    chevron points the way the panel will move, not the way
+                    the top panel's does. */}
+                {alertsPanelOpen ? <IconChevronDown size={15} /> : <IconChevronUp size={15} />}
               </button>
             </div>
             {alertsPanelOpen && (

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useT } from '../lib/useT'
 import { httpStatusOf } from '../lib/apiError'
+import { IconAlertCircle, IconBrand, IconEye, IconEyeOff } from '../components/icons'
 
 /**
  * Standalone login screen (no sidebar). Shown by the router whenever there
@@ -48,16 +49,11 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
-      {/* decorative animated bubbles (same as the sidebar) */}
-      <div className="login-bubble login-bubble--1" />
-      <div className="login-bubble login-bubble--2" />
-      <div className="login-bubble login-bubble--3" />
-      <div className="login-bubble login-bubble--4" />
-      <div className="login-bubble login-bubble--5" />
-
       <form className="login-card" onSubmit={onSubmit}>
         <div className="login-brand">
-          <div className="login-brand-icon">📡</div>
+          <div className="login-brand-mark">
+            <IconBrand size={24} />
+          </div>
           <div>
             <h1>Hypervisor</h1>
             <p>{t('login.subtitle')}</p>
@@ -97,25 +93,19 @@ export function LoginPage() {
               aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
               aria-pressed={showPassword}
             >
-              {showPassword ? (
-                /* Eye with a slash — currently visible, click to hide. */
-                <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8.5 4.2a7.6 7.6 0 0 1 1.5-.15c4 0 7 3.2 8 5.95a12 12 0 0 1-2.2 3.2M5.1 5.6A11.6 11.6 0 0 0 2 10c1 2.75 4 5.95 8 5.95a8.6 8.6 0 0 0 3.5-.74" />
-                  <path d="M8.2 8.3a2.5 2.5 0 0 0 3.5 3.5" />
-                  <path d="M3 3l14 14" />
-                </svg>
-              ) : (
-                /* Plain eye — currently hidden, click to reveal. */
-                <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 10c1-2.75 4-5.95 8-5.95S17 7.25 18 10c-1 2.75-4 5.95-8 5.95S3 12.75 2 10z" />
-                  <circle cx="10" cy="10" r="2.5" />
-                </svg>
-              )}
+              {/* Slashed eye: currently visible, click to hide. Plain eye:
+                  currently hidden, click to reveal. */}
+              {showPassword ? <IconEyeOff size={17} /> : <IconEye size={17} />}
             </button>
           </div>
         </label>
 
-        {error && <p className="login-error">{error}</p>}
+        {error && (
+          <p className="login-error" role="alert">
+            <IconAlertCircle size={15} />
+            <span>{error}</span>
+          </p>
+        )}
 
         <button type="submit" className="btn" disabled={busy}>
           {busy ? t('login.submitting') : t('login.submit')}

@@ -1,4 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import {
   applyTheme,
   DEFAULT_PREFS,
@@ -15,6 +21,15 @@ import {
   subscribeLocation,
   type OperatorLocation,
 } from '../lib/operatorLocation'
+import {
+  IconBell,
+  IconCheck,
+  IconLanguage,
+  IconMapPin,
+  IconMoon,
+  IconRefresh,
+  IconSiren,
+} from '../components/icons'
 
 /* ── Sub-components ─────────────────────────────────────── */
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -31,8 +46,14 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 interface ShellProps {
-  icon: string
-  bg: string
+  Icon: ComponentType<{ size?: number }>
+  /**
+   * Accent for the row's icon tile, given as a CSS variable rather than a
+   * literal so it follows the theme — the ambers and greens that read on
+   * a white panel are invisible on the dark one.
+   */
+  tone: string
+  toneSoft: string
   label: string
   desc: string
   note?: string | null
@@ -42,10 +63,15 @@ interface ShellProps {
 }
 
 /** Icon, label, description, optional status line, and one control. */
-function SettingRowShell({ icon, bg, label, desc, note, noteTone, control }: ShellProps) {
+function SettingRowShell({ Icon, tone, toneSoft, label, desc, note, noteTone, control }: ShellProps) {
   return (
     <div className="settings-row">
-      <div className="settings-row-icon-wrap" style={{ background: bg }}>{icon}</div>
+      <div
+        className="settings-row-icon-wrap"
+        style={{ '--row-accent': tone, '--row-accent-soft': toneSoft } as CSSProperties}
+      >
+        <Icon size={17} />
+      </div>
       <div className="settings-row-text">
         <span className="settings-row-label">{label}</span>
         <span className="settings-row-desc">{desc}</span>
@@ -214,9 +240,15 @@ export function SettingsPage() {
           <h2>{t('settings.title')}</h2>
           <p>{t('settings.subtitle')}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {saved && <span className="settings-saved-badge">{t('common.saved')}</span>}
-          <button className="btn secondary btn-sm" onClick={resetAll}>
+        <div className="page-actions">
+          {saved && (
+            <span className="settings-saved-badge" role="status">
+              <IconCheck size={13} />
+              {t('common.saved')}
+            </span>
+          )}
+          <button type="button" className="btn secondary btn-sm" onClick={resetAll}>
+            <IconRefresh size={14} />
             {t('settings.reset')}
           </button>
         </div>
@@ -235,8 +267,9 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.alerts')}</p>
 
           <SettingRow
-            icon="🔔"
-            bg="rgba(245,158,11,0.18)"
+            Icon={IconBell}
+            tone="var(--accent)"
+            toneSoft="var(--accent-soft)"
             label={t('settings.notifications')}
             desc={t('settings.notifications.desc')}
             checked={prefs.notifications}
@@ -246,8 +279,9 @@ export function SettingsPage() {
           />
 
           <SettingRow
-            icon="🚨"
-            bg="rgba(220,38,38,0.18)"
+            Icon={IconSiren}
+            tone="var(--danger)"
+            toneSoft="var(--danger-soft)"
             label={t('settings.highCritical')}
             desc={t('settings.highCritical.desc')}
             checked={prefs.notif_high_critical_only}
@@ -257,8 +291,9 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.location')}</p>
 
           <SettingRow
-            icon="📍"
-            bg="rgba(34,197,94,0.18)"
+            Icon={IconMapPin}
+            tone="var(--success)"
+            toneSoft="var(--success-soft)"
             label={t('settings.location')}
             desc={t('settings.location.desc')}
             checked={prefs.location_tracking}
@@ -270,8 +305,9 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.appearance')}</p>
 
           <SettingRow
-            icon="🌙"
-            bg="rgba(99,102,241,0.18)"
+            Icon={IconMoon}
+            tone="var(--neutral)"
+            toneSoft="var(--neutral-soft)"
             label={t('settings.darkMode')}
             desc={t('settings.darkMode.desc')}
             checked={prefs.theme === 'dark'}
@@ -281,8 +317,9 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.language')}</p>
 
           <SettingSelectRow
-            icon="🌐"
-            bg="rgba(37,99,235,0.18)"
+            Icon={IconLanguage}
+            tone="var(--accent)"
+            toneSoft="var(--accent-soft)"
             label={t('settings.language')}
             desc={t('settings.language.desc')}
             value={prefs.language}

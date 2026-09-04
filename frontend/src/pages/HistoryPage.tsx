@@ -6,6 +6,13 @@ import { useLiveAlertsContext } from '../context/LiveAlertsContext'
 import { extractApiError } from '../lib/apiError'
 import type { Alert, AlertSeverity, AlertStatus } from '../types/api'
 import { useT } from '../lib/useT'
+import {
+  IconAlertCircle,
+  IconCheck,
+  IconHistory,
+  IconNavigation,
+  IconTrash,
+} from '../components/icons'
 
 const SEVS: ('' | AlertSeverity)[] = ['', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 const STATUSES: ('' | AlertStatus)[] = ['', 'NEW', 'ACKNOWLEDGED', 'RESOLVED']
@@ -90,7 +97,7 @@ export function HistoryPage() {
           <p>{t('history.subtitle')}</p>
         </div>
         {canDelete && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="page-actions">
             <button
               type="button"
               className="btn secondary btn-sm"
@@ -98,6 +105,7 @@ export function HistoryPage() {
               title={t('history.clearResolvedTitle')}
               onClick={() => onClear(true)}
             >
+              <IconCheck size={14} />
               {t('history.clearResolved')}{resolvedCount > 0 ? ` (${resolvedCount})` : ''}
             </button>
             <button
@@ -107,26 +115,44 @@ export function HistoryPage() {
               title={t('history.deleteAllTitle')}
               onClick={() => onClear(false)}
             >
+              <IconTrash size={14} />
               {t('history.deleteAll')}
             </button>
           </div>
         )}
       </div>
 
-      {error && <p className="login-error">{error}</p>}
+      {error && (
+        <p className="login-error" role="alert">
+          <IconAlertCircle size={15} />
+          <span>{error}</span>
+        </p>
+      )}
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      {/* Filters are chrome above the results, not a card of their own —
+          a full panel here competed with the incidents underneath it. */}
+      <div className="filter-bar">
         <div className="form-row">
-          <label>{t('common.severity')}</label>
-          <select value={severity} onChange={(e) => setSeverity(e.target.value as AlertSeverity | '')}>
+          <label htmlFor="filter-severity">{t('common.severity')}</label>
+          <select
+            id="filter-severity"
+            value={severity}
+            onChange={(e) => setSeverity(e.target.value as AlertSeverity | '')}
+          >
             {SEVS.map((s) => (
               <option key={s} value={s}>
                 {s ? t(`severity.${s}`) : t('common.all')}
               </option>
             ))}
           </select>
-          <label style={{ marginLeft: 16 }}>{t('common.status')}</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value as AlertStatus | '')}>
+        </div>
+        <div className="form-row">
+          <label htmlFor="filter-status">{t('common.status')}</label>
+          <select
+            id="filter-status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as AlertStatus | '')}
+          >
             {STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s ? t(`status.${s}`) : t('common.all')}
@@ -134,36 +160,58 @@ export function HistoryPage() {
             ))}
           </select>
         </div>
+        {!loading && (
+          <span className="filter-bar-count">
+            {t('history.count', { count: visible.length })}
+          </span>
+        )}
       </div>
 
       {loading && <p className="muted">{t('common.loading')}</p>}
-      {!loading && visible.length === 0 && <p className="muted">{t('history.empty')}</p>}
+      {!loading && visible.length === 0 && (
+        <div className="empty-state">
+          <IconHistory size={26} />
+          <span>{t('history.empty')}</span>
+        </div>
+      )}
 
       <div className="timeline">
         {visible.map((a) => (
           <div key={a.id} className={`timeline-item sev-${a.severity}`}>
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <b>
-                  [{t(`severity.${a.severity}`)}] {t(`alertType.${a.type}`)}
-                </b>
-                <span style={{ display: 'flex', gap: 8, alignItems: 'center', whiteSpace: 'nowrap' }}>
+            <div className="card timeline-card">
+              <div className="timeline-card-head">
+                {/*
+                  Severity was previously spelled into the heading as
+                  "[Critical] Object on track". It is a fixed set of four
+                  values, so it belongs in the badge that already carries
+                  the row's colour — leaving the heading to say only what
+                  happened.
+                */}
+                <span className="timeline-card-title">
+                  <span className={`alert-status-badge sev-badge sev-${a.severity}`}>
+                    {t(`severity.${a.severity}`)}
+                  </span>
+                  {t(`alertType.${a.type}`)}
+                </span>
+                <span className="timeline-card-meta">
                   <span className={`alert-status-badge status-${a.status}`}>
                     {t(`status.${a.status}`)}
                   </span>
-                  <time className="muted">
+                  <time className="muted small">
                     {new Date(a.createdAt).toLocaleString()}
                   </time>
                 </span>
               </div>
-              <div style={{ marginTop: 6 }}>{a.message}</div>
+
+              <div className="timeline-card-body">{a.message}</div>
+
               {a.zoneName && (
-                <div className="muted" style={{ marginTop: 4 }}>
-                  {t('alert.zone')} {a.zoneName}
+                <div className="muted small" style={{ marginTop: 4 }}>
+                  {t('alert.zone')} <b>{a.zoneName}</b>
                 </div>
               )}
               {a.status === 'ACKNOWLEDGED' && a.acknowledgedAt && (
-                <div className="muted" style={{ marginTop: 4, fontStyle: 'italic' }}>
+                <div className="timeline-card-note">
                   {t('history.acknowledgedBy', {
                     who: a.acknowledgedBy ?? t('alert.by'),
                     when: new Date(a.acknowledgedAt).toLocaleString(),
@@ -171,7 +219,7 @@ export function HistoryPage() {
                 </div>
               )}
               {a.status === 'RESOLVED' && a.resolvedAt && (
-                <div className="muted" style={{ marginTop: 4, fontStyle: 'italic' }}>
+                <div className="timeline-card-note">
                   {t('history.resolvedBy', {
                     who: a.resolvedBy ?? t('alert.by'),
                     when: new Date(a.resolvedAt).toLocaleString(),
@@ -179,29 +227,34 @@ export function HistoryPage() {
                   {a.resolutionNote ? ` — “${a.resolutionNote}”` : ''}
                 </div>
               )}
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                {a.latitude != null && a.longitude != null && (
-                  <button
-                    type="button"
-                    className="btn secondary btn-sm"
-                    title={t('alert.mapTitle')}
-                    onClick={() => navigate(`/map3d?lat=${a.latitude}&lon=${a.longitude}`)}
-                  >
-                    {t('history.viewOnMap')}
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    className="btn danger btn-sm"
-                    disabled={busyId === a.id}
-                    title={t('history.deleteTitle')}
-                    onClick={() => onDelete(a)}
-                  >
-                    {busyId === a.id ? t('common.deleting') : `🗑 ${t('common.delete')}`}
-                  </button>
-                )}
-              </div>
+
+              {(canDelete || (a.latitude != null && a.longitude != null)) && (
+                <div className="timeline-card-actions">
+                  {a.latitude != null && a.longitude != null && (
+                    <button
+                      type="button"
+                      className="btn ghost btn-sm"
+                      title={t('alert.mapTitle')}
+                      onClick={() => navigate(`/map3d?lat=${a.latitude}&lon=${a.longitude}`)}
+                    >
+                      <IconNavigation size={14} />
+                      {t('history.viewOnMap')}
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      className="btn danger btn-sm"
+                      disabled={busyId === a.id}
+                      title={t('history.deleteTitle')}
+                      onClick={() => onDelete(a)}
+                    >
+                      <IconTrash size={14} />
+                      {busyId === a.id ? t('common.deleting') : t('common.delete')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}

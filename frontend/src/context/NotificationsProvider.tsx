@@ -5,6 +5,8 @@ import { useLiveAlertsContext } from './LiveAlertsContext'
 import type { Alert, AlertSeverity } from '../types/api'
 import { loadPrefs } from '../lib/prefs'
 import { markSeenOnce } from '../lib/alertSeenLog'
+import { t } from '../lib/i18n'
+import { IconX } from '../components/icons'
 
 /**
  * Turns the live alert stream into user-facing notifications: an in-app
@@ -197,9 +199,9 @@ function pushToast(alert: Alert, navigate: Navigate) {
           toast.dismiss(toastId)
         }}
       >
-        <span className="toast-sev">{alert.severity}</span>
+        <span className="toast-sev">{t(`severity.${alert.severity}`)}</span>
         <div className="toast-body">
-          <strong>{alert.type.replace(/_/g, ' ')}</strong>
+          <strong>{t(`alertType.${alert.type}`)}</strong>
           <small>{alert.message}</small>
         </div>
         <button
@@ -209,9 +211,9 @@ function pushToast(alert: Alert, navigate: Navigate) {
             e.stopPropagation()
             toast.dismiss(toastId)
           }}
-          aria-label="Dismiss"
+          aria-label={t('common.dismiss')}
         >
-          ×
+          <IconX size={13} />
         </button>
       </div>
     ),
@@ -235,9 +237,12 @@ function pushSummaryToast(alerts: Alert[], navigate: Navigate) {
       >
         <span className="toast-sev">{alerts.length}×</span>
         <div className="toast-body">
-          <strong>{alerts.length} new alerts</strong>
+          <strong>{t('toast.newAlerts', { count: alerts.length })}</strong>
           <small>
-            Highest: {severity} · {alerts[0].type.replace(/_/g, ' ')} — open the dashboard
+            {t('toast.highest', {
+              severity: t(`severity.${severity}`),
+              type: t(`alertType.${alerts[0].type}`),
+            })}
           </small>
         </div>
         <button
@@ -247,9 +252,9 @@ function pushSummaryToast(alerts: Alert[], navigate: Navigate) {
             e.stopPropagation()
             toast.dismiss(toastId)
           }}
-          aria-label="Dismiss"
+          aria-label={t('common.dismiss')}
         >
-          ×
+          <IconX size={13} />
         </button>
       </div>
     ),

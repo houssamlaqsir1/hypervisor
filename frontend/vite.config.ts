@@ -13,9 +13,16 @@ export default defineConfig({
     port: 5173,
     /** Allow opening dev server via LAN URLs (Network: http://192.168.x.x:5173). */
     allowedHosts: true,
+    /**
+     * Filesystem events do not cross a bind mount from a Windows host into
+     * a Linux container, so a dev server running that way never learns a
+     * file changed and keeps serving the module it transformed at startup.
+     * Polling costs a little CPU and is only switched on when asked for.
+     */
+    watch: process.env.VITE_DEV_POLL ? { usePolling: true, interval: 300 } : undefined,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_DEV_API_TARGET ?? 'http://localhost:8080',
         changeOrigin: true,
       },
       /**
@@ -24,7 +31,7 @@ export default defineConfig({
        * In dev, proxy through Vite so /hls-media/... is same-origin as the app.
        */
       '/hls-media': {
-        target: 'http://127.0.0.1:8888',
+        target: process.env.VITE_DEV_HLS_TARGET ?? 'http://127.0.0.1:8888',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/hls-media/, ''),
       },
