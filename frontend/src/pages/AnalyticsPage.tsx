@@ -74,23 +74,6 @@ function TimelineChart({ data, label }: { data: { date: string; count: number }[
       aria-label={label}
       style={{ '--dash': Math.ceil(pathLength) } as CSSProperties}
     >
-      <defs>
-        {/* The line runs through the brand gradient rather than a single
-            hue, so the chart belongs to the same palette as the rail and
-            the primary button. */}
-        <linearGradient id="chart-stroke" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="var(--accent)" />
-          <stop offset="100%" stopColor="var(--accent-2)" />
-        </linearGradient>
-        {/* The fill fades out downward: full tint against the line,
-            nothing at the axis, so the area reads as depth under the
-            series rather than as a solid block of colour. */}
-        <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
       {ticks.map((t) => (
         <g key={t}>
           <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="chart-grid" />
