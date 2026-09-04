@@ -970,6 +970,11 @@ h3 {
  * higher up as a result.
  */
 .dash-stat-card {
+  /* Positioning context and clip for the hover wash below. Neither is
+     visible at rest; the card's resting size, padding and radius are
+     unchanged. */
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: var(--s-3);
@@ -984,23 +989,67 @@ h3 {
 }
 
 /*
- * The counters lift under the pointer: up three pixels, onto a cast
- * shadow, while the severity tile turns slightly into the movement. It
- * is the one place in the console with a deliberately generous hover,
- * and it reads as the row acknowledging the cursor rather than merely
- * changing colour under it.
+ * A wash of the card's own severity colour, bleeding in from the leading
+ * edge and invisible until the pointer arrives. It is what makes the
+ * hover feel like the card lighting up rather than merely rising.
  *
- * Only the transform and the shadow are restored from the earlier
- * version of this card. The accent bar that widened on its leading edge
- * and the severity wash that bled across it are not: both were removed
- * on purpose, and both would put a coloured border and a gradient back
- * on a surface the rest of the console no longer uses them on.
+ * It fades out by 62% of the width, so the figure and its label are
+ * always read against the plain panel rather than through a tint — the
+ * effect is felt at the edge of vision and never costs legibility.
+ */
+.dash-stat-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--card-accent, var(--accent)) 15%, transparent) 0%,
+    transparent 62%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* The wash is an absolutely-positioned overlay, so the icon tile and the
+   figures are lifted into their own layer to keep the tint behind them. */
+.dash-stat-card > * { position: relative; z-index: 1; }
+
+/*
+ * The counters lift under the pointer: up three pixels, onto a cast
+ * shadow, the severity tile turning slightly into the movement while the
+ * card's own colour washes in from the leading edge. It is the one place
+ * in the console with a deliberately generous hover, and it reads as the
+ * card lighting up rather than merely rising.
+ *
+ * The one part of the earlier version deliberately not restored is the
+ * accent bar that ran down the leading edge and widened on hover: that
+ * is a coloured left border at rest, which every other surface here has
+ * dropped. The wash carries the same colour, only while the pointer is
+ * actually on the card.
  */
 .dash-stat-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-hover);
-  border-color: var(--border-strong);
+  /*
+   * The border takes a cast of the card's own severity, so the outline
+   * agrees with the wash rather than going neutral grey against it —
+   * but only a cast, tuned to land at the weight the plain uncoloured
+   * outline had.
+   *
+   * The mix is into `--border`, the light hairline, not into
+   * `--border-strong`. Every accent here is darker than the grey, so
+   * mixing into the already-darker `--border-strong` could only overshoot
+   * it: at 18% the outline came out ~25 luminance points heavier than
+   * the plain one it was meant to match. Starting from the lighter
+   * hairline, 15% of the accent lands within a few points of it in the
+   * light theme and lifts about as far off the resting border in the
+   * dark one.
+   */
+  border-color: color-mix(in srgb, var(--card-accent, var(--accent)) 15%, var(--border));
 }
+
+.dash-stat-card:hover::after { opacity: 1; }
 
 .dash-stat-icon {
   width: 32px;
