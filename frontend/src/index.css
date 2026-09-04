@@ -319,6 +319,13 @@ time,
   to { transform: rotate(360deg); }
 }
 
+/* The slow drift of the sign-in screen's background wash. */
+@keyframes aurora {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%      { transform: translate3d(3%, -4%, 0) scale(1.08); }
+  66%      { transform: translate3d(-3%, 3%, 0) scale(0.96); }
+}
+
 /*
  * Staggered entrance.
  *
@@ -2793,15 +2800,9 @@ input[type='number']::-webkit-inner-spin-button {
 
 /* ═══ Login ═════════════════════════════════════════════════════════ */
 
-/*
- * A plain ground and one panel on it.
- *
- * Two heavily blurred colour blobs used to drift behind this card. They
- * were the most decorative thing in the console and the most obviously
- * generated — an ambient glow with no light source, on the one screen
- * whose whole job is to look trustworthy before anyone has signed in.
- */
 .login-page {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -2810,14 +2811,74 @@ input[type='number']::-webkit-inner-spin-button {
   background: var(--bg);
 }
 
+/*
+ * Two broad washes of colour behind the card, drifting slowly against
+ * each other on a half-minute cycle.
+ *
+ * This is the one screen in the console that carries an ambient effect,
+ * and it is deliberately the only one. Nobody is reading data off the
+ * sign-in page, so a background with some depth to it costs an operator
+ * nothing and sets the tone for the product. Past this screen every
+ * surface is flat, because past this screen every surface has data on
+ * it — and a tint behind a severity colour is a tint that changes what
+ * the severity looks like.
+ *
+ * Heavily blurred and low contrast on purpose: it should be felt as
+ * depth rather than noticed as two circles, and it must not pull
+ * contrast out from under the form sitting on top of it. Under
+ * prefers-reduced-motion the drift stops and the wash stays put, which
+ * is the right outcome — it is the movement that troubles people, not
+ * the colour.
+ */
+.login-page::before,
+.login-page::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(90px);
+  will-change: transform;
+}
+
+.login-page::before {
+  width: 46vw;
+  height: 46vw;
+  min-width: 420px;
+  min-height: 420px;
+  top: -16%;
+  left: 8%;
+  background: var(--accent);
+  opacity: 0.2;
+  animation: aurora 26s var(--ease-in-out) infinite;
+}
+
+.login-page::after {
+  width: 38vw;
+  height: 38vw;
+  min-width: 340px;
+  min-height: 340px;
+  bottom: -14%;
+  right: 6%;
+  background: var(--accent-2);
+  opacity: 0.16;
+  animation: aurora 34s var(--ease-in-out) -12s infinite reverse;
+}
+
+.dark-mode .login-page::before { opacity: 0.26; }
+.dark-mode .login-page::after  { opacity: 0.2; }
+
 .login-card {
+  /* Above the wash, and opaque — the card is where the reading happens,
+     so no colour from behind is allowed through it. */
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 396px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
   padding: 32px 30px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
   gap: 16px;
