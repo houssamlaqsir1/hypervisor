@@ -442,7 +442,39 @@ time,
   overflow: hidden;
   padding: 18px 12px 14px;
   border-right: 1px solid var(--sidebar-border);
-  background: var(--sidebar-bg);
+  /* A vertical fall-off rather than a flat fill, warmed at the top by
+     the brand hue, so the rail has a light source of its own.
+
+     The rail is the other place a gradient earns its keep: like the
+     sign-in screen it carries navigation rather than data, so tinting
+     it changes nothing an operator has to read accurately. */
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent-2) 13%, var(--sidebar-bg)) 0%,
+      var(--sidebar-bg) 34%,
+      color-mix(in srgb, #000 22%, var(--sidebar-bg)) 100%
+    );
+}
+
+/* A single hairline of brand colour down the rail's trailing edge —
+   the one place the console signs its name in the chrome. */
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--accent) 18%,
+    var(--accent-2) 55%,
+    transparent 100%
+  );
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .sidebar-inner {
