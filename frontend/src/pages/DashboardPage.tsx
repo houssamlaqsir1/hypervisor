@@ -13,6 +13,8 @@ import {
   IconCheckCircle,
   IconInfo,
 } from '../components/icons'
+import { AnimatedNumber } from '../components/AnimatedNumber'
+import { AlertListSkeleton, StatRowSkeleton } from '../components/Skeleton'
 
 /**
  * The five counters across the top of the console.
@@ -113,28 +115,39 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="dash-stat-row">
-        {STAT_CARDS.map((c) => (
-          <div
-            key={c.key}
-            className="dash-stat-card"
-            style={
-              {
-                '--card-accent': c.accent,
-                '--card-accent-soft': c.soft,
-              } as React.CSSProperties
-            }
-          >
-            <div className="dash-stat-icon">
-              <c.Icon size={19} />
+      {loading ? (
+        <StatRowSkeleton />
+      ) : (
+        <div className="dash-stat-row">
+          {STAT_CARDS.map((c, i) => (
+            <div
+              key={c.key}
+              className="dash-stat-card"
+              style={
+                {
+                  '--card-accent': c.accent,
+                  '--card-accent-soft': c.soft,
+                  /* Position in the row, read by the entrance stagger. */
+                  '--i': i,
+                } as React.CSSProperties
+              }
+            >
+              <div className="dash-stat-icon">
+                <c.Icon size={20} />
+              </div>
+              <div className="dash-stat-info">
+                {/*
+                  These figures move on their own as alerts stream in, so
+                  they count rather than snap — a digit that simply swaps
+                  is easy to miss on a screen nobody is staring at.
+                */}
+                <AnimatedNumber className="dash-stat-value" value={getValue(c.key)} />
+                <span className="dash-stat-label">{t(c.labelKey)}</span>
+              </div>
             </div>
-            <div className="dash-stat-info">
-              <span className="dash-stat-value">{getValue(c.key)}</span>
-              <span className="dash-stat-label">{t(c.labelKey)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <h3 className="section-title">
         {t('dashboard.latest')}
@@ -143,13 +156,13 @@ export function DashboardPage() {
         )}
       </h3>
 
-      {loading && <p className="muted">{t('common.loading')}</p>}
+      {loading && <AlertListSkeleton />}
 
       {/* Nothing outstanding is the state this console spends most of its
           time in, so it is drawn as a result rather than left as a bare
           grey sentence floating where the feed should be. */}
       {!loading && visibleAlerts.length === 0 && (
-        <div className="empty-state">
+        <div className="empty-state animate-pop">
           <IconCheckCircle size={26} />
           <span>
             {alerts.length === 0 ? t('dashboard.empty') : t('dashboard.allResolved')}
@@ -158,8 +171,8 @@ export function DashboardPage() {
       )}
 
       <div className="alert-list">
-        {visibleAlerts.slice(0, 30).map((a) => (
-          <AlertRow key={a.id} alert={a} />
+        {visibleAlerts.slice(0, 30).map((a, i) => (
+          <AlertRow key={a.id} alert={a} index={i} />
         ))}
       </div>
     </>

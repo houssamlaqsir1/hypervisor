@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import {
   createCamera,
   deleteCamera,
@@ -34,12 +34,14 @@ const BLANK: CameraInput = {
 
 interface RowProps {
   camera: AdminCamera
+  /** Position in the table, driving the row entrance stagger. */
+  index: number
   t: Translate
   onChanged: (c: AdminCamera) => void
   onDeleted: (id: number) => void
 }
 
-function CameraRow({ camera, t, onChanged, onDeleted }: RowProps) {
+function CameraRow({ camera, index, t, onChanged, onDeleted }: RowProps) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<CameraInput>(toInput(camera))
   const [busy, setBusy] = useState(false)
@@ -123,7 +125,7 @@ function CameraRow({ camera, t, onChanged, onDeleted }: RowProps) {
   }
 
   return (
-    <tr>
+    <tr style={{ '--i': index } as CSSProperties}>
       <td className="cell-mono"><b>{camera.cameraId}</b></td>
       <td>{camera.name}</td>
       <td>{camera.site ?? t('common.none')}</td>
@@ -283,10 +285,11 @@ export function AdminCamerasPage() {
                 </tr>
               </thead>
               <tbody>
-                {cameras.map((c) => (
+                {cameras.map((c, i) => (
                   <CameraRow
                     key={c.id}
                     camera={c}
+                    index={i}
                     t={t}
                     onChanged={(u) => setCameras((prev) => prev.map((x) => (x.id === u.id ? u : x)))}
                     onDeleted={(id) => setCameras((prev) => prev.filter((x) => x.id !== id))}

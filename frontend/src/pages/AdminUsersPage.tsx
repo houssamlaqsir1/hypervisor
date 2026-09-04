@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import {
   createUser,
   deleteUser,
@@ -36,13 +36,15 @@ function extractMessage(raw: string): string {
 
 interface RowProps {
   user: AdminUser
+  /** Position in the table, driving the row entrance stagger. */
+  index: number
   isSelf: boolean
   t: Translate
   onChanged: (updated: AdminUser) => void
   onDeleted: (id: number) => void
 }
 
-function UserRow({ user, isSelf, t, onChanged, onDeleted }: RowProps) {
+function UserRow({ user, index, isSelf, t, onChanged, onDeleted }: RowProps) {
   const [editing, setEditing] = useState(false)
   const [username, setUsername] = useState(user.username)
   const [fullName, setFullName] = useState(user.fullName ?? '')
@@ -169,7 +171,7 @@ function UserRow({ user, isSelf, t, onChanged, onDeleted }: RowProps) {
   }
 
   return (
-    <tr>
+    <tr style={{ '--i': index } as CSSProperties}>
       <td><b>{user.username}</b></td>
       <td>{user.fullName ?? t('common.none')}</td>
       <td>
@@ -370,10 +372,11 @@ export function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
+                {users.map((u, i) => (
                   <UserRow
                     key={u.id}
                     user={u}
+                    index={i}
                     t={t}
                     isSelf={currentUser?.username === u.username}
                     onChanged={(updated) =>

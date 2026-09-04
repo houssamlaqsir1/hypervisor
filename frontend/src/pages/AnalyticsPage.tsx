@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { downloadAlertsCsv, getAnalytics } from '../api/analytics'
 import { extractApiError } from '../lib/apiError'
 import type { Analytics, AlertSeverity, AlertStatus } from '../types/api'
 import { useT } from '../lib/useT'
 import { IconAlertCircle, IconDownload } from '../components/icons'
+import { AnimatedNumber } from '../components/AnimatedNumber'
+import { CardSkeleton, StatRowSkeleton } from '../components/Skeleton'
 
 const WINDOWS = [7, 30, 90]
 
@@ -46,8 +48,49 @@ function TimelineChart({ data, label }: { data: { date: string; count: number }[
   const ticks = [0, 0.5, 1].map((f) => Math.round(max * f))
   const labelIdx = n <= 1 ? [0] : [0, Math.floor((n - 1) / 2), n - 1]
 
+  /*
+   * Length of the line, so the draw-in animation can dash exactly it.
+   *
+   * Measured rather than guessed: `stroke-dasharray` has to be at least
+   * the true path length or the line reappears part-drawn, and a fixed
+   * guess would be wrong for both a 7-day window and a 90-day one. Summed
+   * from the segments here instead of read from `getTotalLength()`,
+   * because that needs the element in the document and this runs during
+   * render — one pass over data we already hold, versus a layout round
+   * trip and an effect.
+   */
+  const pathLength = data.reduce((sum, d, i) => {
+    if (i === 0) return 0
+    const dx = x(i) - x(i - 1)
+    const dy = y(d.count) - y(data[i - 1].count)
+    return sum + Math.hypot(dx, dy)
+  }, 0)
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="analytics-timeline" role="img" aria-label={label}>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="analytics-timeline"
+      role="img"
+      aria-label={label}
+      style={{ '--dash': Math.ceil(pathLength) } as CSSProperties}
+    >
+      <defs>
+        {/* The line runs through the brand gradient rather than a single
+            hue, so the chart belongs to the same palette as the rail and
+            the primary button. */}
+        <linearGradient id="chart-stroke" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--accent)" />
+          <stop offset="100%" stopColor="var(--accent-2)" />
+        </linearGradient>
+        {/* The fill fades out downward: full tint against the line,
+            nothing at the axis, so the area reads as depth under the
+            series rather than as a solid block of colour. */}
+        <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
       {ticks.map((t) => (
         <g key={t}>
           <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} className="chart-grid" />
@@ -57,7 +100,14 @@ function TimelineChart({ data, label }: { data: { date: string; count: number }[
       <path d={areaPath} className="chart-area" />
       <path d={linePath} className="chart-line" />
       {data.map((d, i) => (
-        <circle key={d.date} cx={x(i)} cy={y(d.count)} r={n > 45 ? 0 : 2.5} className="chart-dot">
+        <circle
+          key={d.date}
+          cx={x(i)}
+          cy={y(d.count)}
+          r={n > 45 ? 0 : 2.5}
+          className="chart-dot"
+          style={{ '--i': i } as CSSProperties}
+        >
           <title>{d.date} · {d.count}</title>
         </circle>
       ))}
@@ -84,13 +134,22 @@ function BarList({
   if (rows.length === 0) return <p className="muted" style={{ margin: 0 }}>{empty}</p>
   return (
     <div className="bar-list">
-      {rows.map((r) => (
-        <div className="bar-row" key={r.label}>
+      {rows.map((r, i) => (
+        <div className="bar-row" key={r.label} style={{ '--i': i } as CSSProperties}>
           <span className="bar-label" title={r.label}>{r.label}</span>
           <span className="bar-track">
-            <span className="bar-fill" style={{ width: `${(r.count / max) * 100}%`, background: r.color ?? color }} />
+            <span
+              className="bar-fill"
+              style={
+                {
+                  width: `${(r.count / max) * 100}%`,
+                  background: r.color ?? color,
+                  '--i': i,
+                } as CSSProperties
+              }
+            />
           </span>
-          <span className="bar-value">{r.count}</span>
+          <AnimatedNumber className="bar-value" value={r.count} durationMs={600} />
         </div>
       ))}
     </div>
@@ -187,26 +246,48 @@ export function AnalyticsPage() {
           <span>{error}</span>
         </p>
       )}
-      {loading && <p className="muted">{t('common.loading')}</p>}
+      {/* Placeholders shaped like the panels that are coming, so switching
+          window (7d → 90d) does not collapse the page and push the charts
+          up under the pointer before they redraw. */}
+      {loading && (
+        <>
+          <StatRowSkeleton />
+          <CardSkeleton height={176} />
+        </>
+      )}
 
       {data && !loading && (
         <>
           <div className="analytics-kpis">
-            <div className="card analytics-kpi">
+            <div className="card analytics-kpi" style={{ '--i': 0 } as CSSProperties}>
               <h3>{t('analytics.totalWindow', { days: data.windowDays })}</h3>
-              <div className="value">{data.total}</div>
+              <AnimatedNumber className="value" value={data.total} />
             </div>
-            {SEVERITY_ORDER.map((s) => (
-              <div className="card analytics-kpi" key={s}>
+            {SEVERITY_ORDER.map((s, i) => (
+              <div
+                className="card analytics-kpi"
+                key={s}
+                style={{ '--i': i + 1 } as CSSProperties}
+              >
                 <h3 style={{ color: SEVERITY_COLOR[s] }}>{t(`severity.${s}`)}</h3>
-                <div className="value">{data.bySeverity[s] ?? 0}</div>
+                <AnimatedNumber className="value" value={data.bySeverity[s] ?? 0} />
               </div>
             ))}
           </div>
 
-          <div className="card" style={{ marginBottom: 14 }}>
+          {/*
+            The chart is keyed on the window so that changing it remounts
+            the SVG and replays the draw-in. Without the key React reuses
+            the same paths, the `d` attribute swaps, and the new series
+            appears fully formed with no indication anything changed.
+          */}
+          <div className="card" style={{ marginBottom: 14, '--i': 6 } as CSSProperties}>
             <h3>{t('analytics.perDay')}</h3>
-            <TimelineChart data={data.timeline} label={t('analytics.perDay')} />
+            <TimelineChart
+              key={data.windowDays}
+              data={data.timeline}
+              label={t('analytics.perDay')}
+            />
           </div>
 
           <div className="analytics-grid">

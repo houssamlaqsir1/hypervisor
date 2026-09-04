@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { acknowledgeAlert, resolveAlert } from '../api/alerts'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
@@ -8,6 +8,8 @@ import { IconCheck, IconCheckCircle, IconNavigation } from './icons'
 
 interface Props {
   alert: Alert
+  /** Position in its list, driving the feed's staggered entrance. */
+  index?: number
 }
 
 import { useT } from '../lib/useT'
@@ -78,7 +80,7 @@ function FusionDetails({ details }: { details: AlertDetails }) {
   )
 }
 
-export function AlertRow({ alert }: Props) {
+export function AlertRow({ alert, index = 0 }: Props) {
   const t = useT()
   const navigate = useNavigate()
   const { updateAlert } = useLiveAlertsContext()
@@ -118,7 +120,10 @@ export function AlertRow({ alert }: Props) {
   }
 
   return (
-    <div className={`alert-row sev-${alert.severity} status-${alert.status}`}>
+    <div
+      className={`alert-row sev-${alert.severity} status-${alert.status}`}
+      style={{ '--i': index } as CSSProperties}
+    >
       <span className="sev">{t(`severity.${alert.severity}`)}</span>
       <div className="message">
         <strong>{t(`alertType.${alert.type}`)}</strong>

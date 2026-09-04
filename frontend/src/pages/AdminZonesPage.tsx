@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import {
   createZone,
   deleteZone,
@@ -34,12 +34,14 @@ const BLANK: ZoneInput = {
 
 interface RowProps {
   zone: Zone
+  /** Position in the table, driving the row entrance stagger. */
+  index: number
   t: Translate
   onChanged: (z: Zone) => void
   onDeleted: (id: number) => void
 }
 
-function ZoneRow({ zone, t, onChanged, onDeleted }: RowProps) {
+function ZoneRow({ zone, index, t, onChanged, onDeleted }: RowProps) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ZoneInput>(toInput(zone))
   const [busy, setBusy] = useState(false)
@@ -113,7 +115,7 @@ function ZoneRow({ zone, t, onChanged, onDeleted }: RowProps) {
   }
 
   return (
-    <tr>
+    <tr style={{ '--i': index } as CSSProperties}>
       <td><b>{zone.name}</b></td>
       <td><span className={`zone-type-badge zt-${zone.type}`}>{t(`zoneType.${zone.type}`)}</span></td>
       <td className="cell-mono cell-num">
@@ -258,10 +260,11 @@ export function AdminZonesPage() {
                 </tr>
               </thead>
               <tbody>
-                {zones.map((z) => (
+                {zones.map((z, i) => (
                   <ZoneRow
                     key={z.id}
                     zone={z}
+                    index={i}
                     t={t}
                     onChanged={(u) => setZones((prev) => prev.map((x) => (x.id === u.id ? u : x)))}
                     onDeleted={(id) => setZones((prev) => prev.filter((x) => x.id !== id))}
