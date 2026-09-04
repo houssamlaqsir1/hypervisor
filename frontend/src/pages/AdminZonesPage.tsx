@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   createZone,
   deleteZone,
@@ -14,7 +14,6 @@ import { NumberField } from '../components/NumberField'
 import {
   IconAlertCircle,
   IconCheck,
-  IconPencil,
   IconPlus,
   IconTrash,
   IconX,
@@ -34,14 +33,12 @@ const BLANK: ZoneInput = {
 
 interface RowProps {
   zone: Zone
-  /** Position in the table, driving the row entrance stagger. */
-  index: number
   t: Translate
   onChanged: (z: Zone) => void
   onDeleted: (id: number) => void
 }
 
-function ZoneRow({ zone, index, t, onChanged, onDeleted }: RowProps) {
+function ZoneRow({ zone, t, onChanged, onDeleted }: RowProps) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ZoneInput>(toInput(zone))
   const [busy, setBusy] = useState(false)
@@ -95,7 +92,7 @@ function ZoneRow({ zone, index, t, onChanged, onDeleted }: RowProps) {
             <NumberField value={form.centerLat} onChange={(v) => setForm({ ...form, centerLat: v })} step={0.0001} min={-90} max={90} disabled={busy} aria-label={t('field.latitude')} />
             <NumberField value={form.centerLon} onChange={(v) => setForm({ ...form, centerLon: v })} step={0.0001} min={-180} max={180} disabled={busy} aria-label={t('field.longitude')} />
           </div>
-          {err && <div className="login-error" style={{ marginTop: 6 }}>{err}</div>}
+          {err && <div className="login-error">{err}</div>}
         </td>
         <td><NumberField value={form.radiusM} onChange={(v) => setForm({ ...form, radiusM: v })} step={5} min={1} disabled={busy} aria-label={t('admin.zones.radius')} /></td>
         <td className="cell-actions">
@@ -115,7 +112,7 @@ function ZoneRow({ zone, index, t, onChanged, onDeleted }: RowProps) {
   }
 
   return (
-    <tr style={{ '--i': index } as CSSProperties}>
+    <tr>
       <td><b>{zone.name}</b></td>
       <td><span className={`zone-type-badge zt-${zone.type}`}>{t(`zoneType.${zone.type}`)}</span></td>
       <td className="cell-mono cell-num">
@@ -125,7 +122,6 @@ function ZoneRow({ zone, index, t, onChanged, onDeleted }: RowProps) {
       <td className="cell-actions">
         <div className="action-group">
           <button type="button" className="btn ghost btn-sm" onClick={startEdit} disabled={busy}>
-            <IconPencil size={14} />
             {t('admin.edit')}
           </button>
           <button
@@ -139,7 +135,7 @@ function ZoneRow({ zone, index, t, onChanged, onDeleted }: RowProps) {
             <IconTrash size={14} />
           </button>
         </div>
-        {err && <div className="login-error" style={{ marginTop: 6 }}>{err}</div>}
+        {err && <div className="login-error">{err}</div>}
       </td>
     </tr>
   )
@@ -189,7 +185,7 @@ export function AdminZonesPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card form-card">
         <h3>{t('admin.zones.new')}</h3>
         <form onSubmit={onCreate} className="admin-user-form">
           <label className="login-field">
@@ -260,11 +256,10 @@ export function AdminZonesPage() {
                 </tr>
               </thead>
               <tbody>
-                {zones.map((z, i) => (
+                {zones.map((z) => (
                   <ZoneRow
                     key={z.id}
                     zone={z}
-                    index={i}
                     t={t}
                     onChanged={(u) => setZones((prev) => prev.map((x) => (x.id === u.id ? u : x)))}
                     onDeleted={(id) => setZones((prev) => prev.filter((x) => x.id !== id))}

@@ -48,31 +48,12 @@ function TimelineChart({ data, label }: { data: { date: string; count: number }[
   const ticks = [0, 0.5, 1].map((f) => Math.round(max * f))
   const labelIdx = n <= 1 ? [0] : [0, Math.floor((n - 1) / 2), n - 1]
 
-  /*
-   * Length of the line, so the draw-in animation can dash exactly it.
-   *
-   * Measured rather than guessed: `stroke-dasharray` has to be at least
-   * the true path length or the line reappears part-drawn, and a fixed
-   * guess would be wrong for both a 7-day window and a 90-day one. Summed
-   * from the segments here instead of read from `getTotalLength()`,
-   * because that needs the element in the document and this runs during
-   * render — one pass over data we already hold, versus a layout round
-   * trip and an effect.
-   */
-  const pathLength = data.reduce((sum, d, i) => {
-    if (i === 0) return 0
-    const dx = x(i) - x(i - 1)
-    const dy = y(d.count) - y(data[i - 1].count)
-    return sum + Math.hypot(dx, dy)
-  }, 0)
-
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className="analytics-timeline"
       role="img"
       aria-label={label}
-      style={{ '--dash': Math.ceil(pathLength) } as CSSProperties}
     >
       {ticks.map((t) => (
         <g key={t}>
@@ -89,7 +70,6 @@ function TimelineChart({ data, label }: { data: { date: string; count: number }[
           cy={y(d.count)}
           r={n > 45 ? 0 : 2.5}
           className="chart-dot"
-          style={{ '--i': i } as CSSProperties}
         >
           <title>{d.date} · {d.count}</title>
         </circle>
@@ -117,8 +97,8 @@ function BarList({
   if (rows.length === 0) return <p className="muted" style={{ margin: 0 }}>{empty}</p>
   return (
     <div className="bar-list">
-      {rows.map((r, i) => (
-        <div className="bar-row" key={r.label} style={{ '--i': i } as CSSProperties}>
+      {rows.map((r) => (
+        <div className="bar-row" key={r.label}>
           <span className="bar-label" title={r.label}>{r.label}</span>
           <span className="bar-track">
             <span
@@ -127,7 +107,6 @@ function BarList({
                 {
                   width: `${(r.count / max) * 100}%`,
                   background: r.color ?? color,
-                  '--i': i,
                 } as CSSProperties
               }
             />
@@ -242,35 +221,23 @@ export function AnalyticsPage() {
       {data && !loading && (
         <>
           <div className="analytics-kpis">
-            <div className="card analytics-kpi" style={{ '--i': 0 } as CSSProperties}>
+            <div className="card analytics-kpi">
               <h3>{t('analytics.totalWindow', { days: data.windowDays })}</h3>
               <AnimatedNumber className="value" value={data.total} />
             </div>
-            {SEVERITY_ORDER.map((s, i) => (
-              <div
-                className="card analytics-kpi"
-                key={s}
-                style={{ '--i': i + 1 } as CSSProperties}
-              >
-                <h3 style={{ color: SEVERITY_COLOR[s] }}>{t(`severity.${s}`)}</h3>
+            {SEVERITY_ORDER.map((s) => (
+              <div className="card analytics-kpi" key={s}>
+                {/* The severity tints its own label, which is what lets the
+                    five counters be told apart without reading them. */}
+                <h3 className={`kpi-label sev-text-${s}`}>{t(`severity.${s}`)}</h3>
                 <AnimatedNumber className="value" value={data.bySeverity[s] ?? 0} />
               </div>
             ))}
           </div>
 
-          {/*
-            The chart is keyed on the window so that changing it remounts
-            the SVG and replays the draw-in. Without the key React reuses
-            the same paths, the `d` attribute swaps, and the new series
-            appears fully formed with no indication anything changed.
-          */}
-          <div className="card" style={{ marginBottom: 14, '--i': 6 } as CSSProperties}>
+          <div className="card chart-card">
             <h3>{t('analytics.perDay')}</h3>
-            <TimelineChart
-              key={data.windowDays}
-              data={data.timeline}
-              label={t('analytics.perDay')}
-            />
+            <TimelineChart data={data.timeline} label={t('analytics.perDay')} />
           </div>
 
           <div className="analytics-grid">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   createUser,
   deleteUser,
@@ -13,7 +13,6 @@ import type { Translate } from '../lib/i18n'
 import {
   IconAlertCircle,
   IconCheck,
-  IconPencil,
   IconPlus,
   IconTrash,
   IconUsers,
@@ -36,15 +35,13 @@ function extractMessage(raw: string): string {
 
 interface RowProps {
   user: AdminUser
-  /** Position in the table, driving the row entrance stagger. */
-  index: number
   isSelf: boolean
   t: Translate
   onChanged: (updated: AdminUser) => void
   onDeleted: (id: number) => void
 }
 
-function UserRow({ user, index, isSelf, t, onChanged, onDeleted }: RowProps) {
+function UserRow({ user, isSelf, t, onChanged, onDeleted }: RowProps) {
   const [editing, setEditing] = useState(false)
   const [username, setUsername] = useState(user.username)
   const [fullName, setFullName] = useState(user.fullName ?? '')
@@ -147,7 +144,7 @@ function UserRow({ user, index, isSelf, t, onChanged, onDeleted }: RowProps) {
             onChange={(e) => setNewPassword(e.target.value)}
             disabled={busy}
           />
-          {rowError && <div className="login-error" style={{ marginTop: 6 }}>{rowError}</div>}
+          {rowError && <div className="login-error">{rowError}</div>}
         </td>
         <td className="cell-actions">
           <div className="action-group">
@@ -171,7 +168,7 @@ function UserRow({ user, index, isSelf, t, onChanged, onDeleted }: RowProps) {
   }
 
   return (
-    <tr style={{ '--i': index } as CSSProperties}>
+    <tr>
       <td><b>{user.username}</b></td>
       <td>{user.fullName ?? t('common.none')}</td>
       <td>
@@ -190,9 +187,11 @@ function UserRow({ user, index, isSelf, t, onChanged, onDeleted }: RowProps) {
           a column of red rectangles, which is a lot of visual insistence
           for the action nobody should take by accident.
         */}
+        {/* Both text actions are label-only. "Edit" used to carry a pencil
+            while "Disable" beside it carried nothing, which made two
+            equal-weight actions look like different kinds of control. */}
         <div className="action-group">
           <button type="button" className="btn ghost btn-sm" onClick={startEdit} disabled={busy}>
-            <IconPencil size={14} />
             {t('admin.edit')}
           </button>
           <button
@@ -215,7 +214,7 @@ function UserRow({ user, index, isSelf, t, onChanged, onDeleted }: RowProps) {
             <IconTrash size={14} />
           </button>
         </div>
-        {rowError && <div className="login-error" style={{ marginTop: 6 }}>{rowError}</div>}
+        {rowError && <div className="login-error">{rowError}</div>}
       </td>
     </tr>
   )
@@ -287,7 +286,7 @@ export function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card form-card">
         <h3>{t('admin.users.new')}</h3>
         <form onSubmit={onCreate} className="admin-user-form">
           <label className="login-field">
@@ -372,11 +371,10 @@ export function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u, i) => (
+                {users.map((u) => (
                   <UserRow
                     key={u.id}
                     user={u}
-                    index={i}
                     t={t}
                     isSelf={currentUser?.username === u.username}
                     onChanged={(updated) =>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   createCamera,
   deleteCamera,
@@ -15,7 +15,6 @@ import {
   IconAlertCircle,
   IconCamera,
   IconCheck,
-  IconPencil,
   IconPlus,
   IconTrash,
   IconX,
@@ -34,14 +33,12 @@ const BLANK: CameraInput = {
 
 interface RowProps {
   camera: AdminCamera
-  /** Position in the table, driving the row entrance stagger. */
-  index: number
   t: Translate
   onChanged: (c: AdminCamera) => void
   onDeleted: (id: number) => void
 }
 
-function CameraRow({ camera, index, t, onChanged, onDeleted }: RowProps) {
+function CameraRow({ camera, t, onChanged, onDeleted }: RowProps) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<CameraInput>(toInput(camera))
   const [busy, setBusy] = useState(false)
@@ -90,7 +87,7 @@ function CameraRow({ camera, index, t, onChanged, onDeleted }: RowProps) {
             <NumberField value={form.latitude} onChange={(v) => setForm({ ...form, latitude: v })} step={0.0001} min={-90} max={90} disabled={busy} aria-label={t('field.latitude')} />
             <NumberField value={form.longitude} onChange={(v) => setForm({ ...form, longitude: v })} step={0.0001} min={-180} max={180} disabled={busy} aria-label={t('field.longitude')} />
           </div>
-          {err && <div className="login-error" style={{ marginTop: 6 }}>{err}</div>}
+          {err && <div className="login-error">{err}</div>}
         </td>
         <td>
           <NumberField
@@ -125,7 +122,7 @@ function CameraRow({ camera, index, t, onChanged, onDeleted }: RowProps) {
   }
 
   return (
-    <tr style={{ '--i': index } as CSSProperties}>
+    <tr>
       <td className="cell-mono"><b>{camera.cameraId}</b></td>
       <td>{camera.name}</td>
       <td>{camera.site ?? t('common.none')}</td>
@@ -143,7 +140,6 @@ function CameraRow({ camera, index, t, onChanged, onDeleted }: RowProps) {
       <td className="cell-actions">
         <div className="action-group">
           <button type="button" className="btn ghost btn-sm" onClick={startEdit} disabled={busy}>
-            <IconPencil size={14} />
             {t('admin.edit')}
           </button>
           <button
@@ -157,7 +153,7 @@ function CameraRow({ camera, index, t, onChanged, onDeleted }: RowProps) {
             <IconTrash size={14} />
           </button>
         </div>
-        {err && <div className="login-error" style={{ marginTop: 6 }}>{err}</div>}
+        {err && <div className="login-error">{err}</div>}
       </td>
     </tr>
   )
@@ -207,7 +203,7 @@ export function AdminCamerasPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card form-card">
         <h3>{t('admin.cameras.new')}</h3>
         <form onSubmit={onCreate} className="admin-user-form">
           <label className="login-field">
@@ -285,11 +281,10 @@ export function AdminCamerasPage() {
                 </tr>
               </thead>
               <tbody>
-                {cameras.map((c, i) => (
+                {cameras.map((c) => (
                   <CameraRow
                     key={c.id}
                     camera={c}
-                    index={i}
                     t={t}
                     onChanged={(u) => setCameras((prev) => prev.map((x) => (x.id === u.id ? u : x)))}
                     onDeleted={(id) => setCameras((prev) => prev.filter((x) => x.id !== id))}

@@ -88,29 +88,41 @@
   /* A halo in the brand colour, for the element the operator is aiming at. */
   --shadow-glow: 0 0 0 1px var(--accent-glow), 0 8px 24px -6px var(--accent-glow);
 
-  /* ── motion ──
-     Three durations and three curves for the whole console, so a hover
-     on the dashboard feels like a hover on the settings screen.
+  /* ── spacing ──
+     One 4px-based scale. Every structural gap, pad and margin in the
+     console comes from it, which is what stops a page accumulating
+     13px here and 18px there until nothing lines up with anything. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
 
-     `--ease-out` is the default: fast at the start, settling at the end,
-     which is how a physical control responds. `--ease-spring` overshoots
-     slightly and is reserved for things that appear — a toggle thumb, a
-     card arriving — where a little bounce reads as alive rather than as
-     a glitch. Never use it on something leaving. */
-  --dur-fast: 140ms;
-  --dur-base: 240ms;
-  --dur-slow: 420ms;
-  --dur-slower: 700ms;
+  /* ── motion ──
+     Two curves and three durations for the whole console, so a hover on
+     the dashboard feels like a hover on the settings screen.
+
+     Both are exponential ease-outs: fast off the mark, settling at the
+     end, which is how a physical control responds. There is deliberately
+     no spring or bounce curve. An overshoot reads as playful, and on a
+     console where the movement means a value changed or an alert
+     arrived, playful is the wrong register — and an overshooting control
+     reads as having wobbled rather than settled. */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 260ms;
 
   --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 
   /* ── control heights ──
      Three sizes only. Anything that takes a click is one of these, so
      a button never sits half a pixel off the input beside it. */
-  --h-sm: 32px;
-  --h-md: 36px;
+  --h-sm: 28px;
+  --h-md: 34px;
   --h-lg: 40px;
 
   --ring: 0 0 0 3px var(--accent-glow);
@@ -303,12 +315,6 @@ time,
   50%      { opacity: 0.45; }
 }
 
-/* A chart line drawing itself from left to right. */
-@keyframes draw-line {
-  from { stroke-dashoffset: var(--dash, 1200); }
-  to   { stroke-dashoffset: 0; }
-}
-
 /* A bar growing from its own leading edge, not from the centre. */
 @keyframes grow-x {
   from { transform: scaleX(0); }
@@ -327,41 +333,20 @@ time,
 }
 
 /*
- * Staggered entrance.
+ * There are deliberately no entrance animations here.
  *
- * A list whose rows all arrive at the same instant is just a fade; one
- * where each row follows the last reads as the list being dealt out,
- * and the eye picks up the order. `--i` is the row's index, set inline
- * by whichever component renders the list.
+ * Staggered rows, a route transition, drawing charts and growing bars
+ * all used to live at this point in the file. They are the wrong
+ * behaviour for a console: an operator opens this to work, not to watch
+ * it assemble, and a supervisor scanning for the one CRITICAL row
+ * should not be reading a list that is still arriving. Choreography on
+ * load also costs exactly the moment when the page is least responsive.
  *
- * The delay is capped: at 45ms a step, a fiftieth alert row would
- * otherwise wait two and a quarter seconds to appear. `min()` holds the
- * whole run under a third of a second however long the list is.
+ * What survives below is motion that reports something: a value that
+ * changed, a feed that is live, an alert nobody has picked up yet, work
+ * in progress. If an animation cannot name the state it is reporting,
+ * it does not belong on this surface.
  */
-.stagger-in {
-  animation: rise-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: min(calc(var(--i, 0) * 45ms), 320ms);
-}
-
-.stagger-slide {
-  animation: slide-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: min(calc(var(--i, 0) * 40ms), 300ms);
-}
-
-.animate-rise { animation: rise-in var(--dur-base) var(--ease-out) backwards; }
-.animate-fade { animation: fade-in var(--dur-base) var(--ease-out) backwards; }
-.animate-pop  { animation: pop-in var(--dur-base) var(--ease-spring) backwards; }
-
-/*
- * Route transition.
- *
- * Keyed on the pathname, so React tears down the old page and mounts a
- * new element — which restarts the animation. Without the key the
- * animation runs once, on first load, and never again.
- */
-.page-enter {
-  animation: rise-in var(--dur-base) var(--ease-out);
-}
 
 /* ── skeletons ──
    Shown where content will be, at the size it will be, so the layout
@@ -422,7 +407,7 @@ time,
 }
 
 .main {
-  padding: 28px 32px 48px;
+  padding: var(--s-6) var(--s-7) var(--s-8);
   min-width: 0;
 }
 
@@ -506,7 +491,6 @@ time,
   flex-shrink: 0;
   color: var(--on-accent);
   background: var(--accent);
-  animation: pop-in var(--dur-slow) var(--ease-spring) backwards;
 }
 
 .sidebar-brand-text h1,
@@ -564,8 +548,6 @@ time,
     color var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
   /* Dealt out top to bottom on first paint; `--i` is set in Sidebar.tsx. */
-  animation: slide-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 35ms + 80ms);
 }
 
 /*
@@ -626,7 +608,7 @@ time,
   border-radius: 0 3px 3px 0;
   background: var(--accent-strong);
   transform-origin: center;
-  animation: nav-mark var(--dur-base) var(--ease-spring);
+  animation: nav-mark var(--dur-base) var(--ease-out);
 }
 
 @keyframes nav-mark {
@@ -643,7 +625,7 @@ time,
   opacity: 0.82;
   transition:
     opacity var(--dur-fast) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring);
+    transform var(--dur-base) var(--ease-out);
 }
 
 .sidebar nav a:hover .nav-icon { opacity: 1; transform: scale(1.12); }
@@ -683,7 +665,6 @@ time,
   transition:
     background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out);
-  animation: fade-in var(--dur-slow) var(--ease-out) 340ms backwards;
 }
 
 .sidebar .status:hover {
@@ -788,55 +769,37 @@ time,
 /* ═══ Page header ═══════════════════════════════════════════════════ */
 
 .page-header {
-  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 20px;
+  gap: var(--s-5);
   flex-wrap: wrap;
-  padding-bottom: 18px;
-  margin-bottom: 22px;
+  padding-bottom: var(--s-4);
+  margin-bottom: var(--s-5);
   border-bottom: 1px solid var(--border);
-}
-
-/* A short run of accent at the leading edge of the rule under a page
-   title, drawing itself in as the page arrives. */
-.page-header::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -1px;
-  height: 2px;
-  width: 56px;
-  background: var(--accent);
-  animation: grow-x var(--dur-slow) var(--ease-out) backwards;
-  transform-origin: left center;
 }
 
 .page-header h2 {
   margin: 0;
-  font-size: 23px;
-  font-weight: 650;
-  letter-spacing: -0.022em;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--text);
-  animation: slide-in var(--dur-base) var(--ease-out) backwards;
 }
 
 .page-header p {
-  margin: 5px 0 0;
+  margin: var(--s-1) 0 0;
   color: var(--text-dim);
   font-size: 13px;
   max-width: 68ch;
-  animation: slide-in var(--dur-base) var(--ease-out) 60ms backwards;
 }
 
 /* The toolbar that sits opposite the title. */
 .page-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-2);
   flex-wrap: wrap;
-  animation: rise-in var(--dur-base) var(--ease-out) 100ms backwards;
 }
 
 /* ═══ Cards ═════════════════════════════════════════════════════════ */
@@ -850,14 +813,14 @@ time,
   position: relative;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 18px 20px;
-  box-shadow: var(--shadow-sm);
-  /* `--i` is optional: a lone card animates immediately, a grid of them
-     deals itself out if the page sets an index on each. */
-  animation: rise-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 60ms);
+  border-radius: var(--r-md);
+  padding: var(--s-4) var(--s-5);
 }
+
+/* The create-a-record panel that sits above a table on the three admin
+   screens. The gap below it was an inline style repeated on each page;
+   it is the same relationship every time, so it belongs here. */
+.form-card { margin-bottom: var(--s-4); }
 
 /* Only cards that respond to a click lift on hover. A static panel that
    moves under the cursor suggests it does something, and it doesn't. */
@@ -918,7 +881,7 @@ h3 {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  margin: 0 0 12px;
+  margin: 0 0 var(--s-3);
   letter-spacing: -0.005em;
 }
 
@@ -926,8 +889,8 @@ h3 {
 .section-title {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin: 0 0 12px;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
@@ -974,7 +937,6 @@ h3 {
   border-radius: 50%;
   background: var(--success-soft);
   box-sizing: content-box;
-  animation: pop-in var(--dur-slow) var(--ease-spring) 120ms backwards;
 }
 
 /* ═══ Dashboard statistics ══════════════════════════════════════════ */
@@ -982,8 +944,8 @@ h3 {
 .dash-stat-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 28px;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
 }
 
 @media (max-width: 1200px) {
@@ -1000,23 +962,40 @@ h3 {
  * stating it three times over was what made the row look assembled from
  * a template rather than designed.
  */
+/*
+ * A metric strip, not five hero tiles. These are reference numbers an
+ * operator glances at on the way to the feed below; sized as headline
+ * cards they pushed the first alert under the fold, which inverted the
+ * page's actual priority. Roughly a third shorter, and the feed starts
+ * higher up as a result.
+ */
 .dash-stat-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px 20px;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
   background: var(--panel);
-  box-shadow: var(--shadow-sm);
   transition:
     transform var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
     border-color var(--dur-base) var(--ease-out);
-  animation: rise-in var(--dur-slow) var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 70ms);
 }
 
+/*
+ * The counters lift under the pointer: up three pixels, onto a cast
+ * shadow, while the severity tile turns slightly into the movement. It
+ * is the one place in the console with a deliberately generous hover,
+ * and it reads as the row acknowledging the cursor rather than merely
+ * changing colour under it.
+ *
+ * Only the transform and the shadow are restored from the earlier
+ * version of this card. The accent bar that widened on its leading edge
+ * and the severity wash that bled across it are not: both were removed
+ * on purpose, and both would put a coloured border and a gradient back
+ * on a surface the rest of the console no longer uses them on.
+ */
 .dash-stat-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-hover);
@@ -1024,20 +1003,21 @@ h3 {
 }
 
 .dash-stat-icon {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: var(--r-lg);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   color: var(--card-accent, var(--accent));
   background: var(--card-accent-soft, var(--accent-soft));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--card-accent, var(--accent)) 20%, transparent);
-  transition: transform var(--dur-base) var(--ease-spring);
+  transition: transform var(--dur-base) var(--ease-out);
 }
 
+/* A small turn, not a bounce — the spring curve that carried this
+   originally is gone from the console, and an overshoot here would be
+   the one springy control on the page. */
 .dash-stat-card:hover .dash-stat-icon { transform: scale(1.08) rotate(-4deg); }
 
 .dash-stat-info {
@@ -1048,17 +1028,22 @@ h3 {
 }
 
 .dash-stat-value {
-  font-size: 30px;
-  font-weight: 650;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
+/* The label is the quiet half of the pair, so it takes the small-caps
+   treatment the rest of the console uses for field labels rather than
+   competing with the figure at body size. */
 .dash-stat-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -1232,7 +1217,6 @@ h3 {
   color: var(--accent);
   font-weight: 650;
   box-shadow: var(--shadow-sm), inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-  animation: pop-in var(--dur-fast) var(--ease-spring);
 }
 
 /* ═══ Form controls ═════════════════════════════════════════════════ */
@@ -1486,10 +1470,6 @@ input[type='number']::-webkit-inner-spin-button {
   animation: pulse-ring 2s var(--ease-out) infinite;
 }
 
-/* A status that has just changed pops rather than swapping in place, so
-   an acknowledgement the operator just made is visibly acknowledged. */
-.alert-status-badge { animation: pop-in var(--dur-base) var(--ease-spring); }
-
 /* Role, in the admin table. The rail's own role chip is drawn against a
    dark navy and cannot be reused on a white row. */
 .role-badge {
@@ -1571,32 +1551,55 @@ input[type='number']::-webkit-inner-spin-button {
 .alert-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--s-2);
 }
 
+/*
+ * Two grid rows, three columns, and the actions live in the third column
+ * rather than on a band of their own.
+ *
+ * That band was costing 40px of every row — an alert whose text was one
+ * line still stood 141px tall, so a 1080p screen held six incidents. The
+ * actions now sit under the timestamp, in space the meta column was
+ * wasting anyway, and the row is driven by its message instead: ~86px,
+ * which is eleven incidents in the same screen. On a console the number
+ * of alerts visible without scrolling is not a cosmetic property.
+ */
 .alert-row {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 13px 16px;
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: var(--s-3);
+  row-gap: var(--s-2);
   align-items: start;
-  box-shadow: var(--shadow-sm);
   transition:
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-out);
-  /* Dealt out in order; `--i` is set by whichever list renders the row. */
-  animation: slide-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: min(calc(var(--i, 0) * 45ms), 320ms);
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 
+.alert-row .sev     { grid-column: 1; grid-row: 1; }
+.alert-row .message { grid-column: 2; grid-row: 1 / span 2; }
+.alert-row-side     { grid-column: 3; grid-row: 1; }
+
+.alert-row-actions {
+  grid-column: 3;
+  grid-row: 2;
+  align-self: end;
+  justify-self: end;
+}
+
+/*
+ * Hover tints the row instead of sliding it. In a list this tight a row
+ * that moves under the pointer shifts its neighbours' apparent position
+ * too, and the operator loses their place in the scan.
+ */
 .alert-row:hover {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-hover);
-  transform: translateX(3px);
+  background: var(--panel-hover);
 }
 
 /*
@@ -1629,20 +1632,30 @@ input[type='number']::-webkit-inner-spin-button {
 
 .alert-row .sev { justify-self: start; margin-top: 1px; }
 
-.alert-row.sev-LOW      .sev { background: var(--neutral-soft); color: var(--neutral); border-color: color-mix(in srgb, var(--neutral) 26%, transparent); }
-.alert-row.sev-MEDIUM   .sev { background: var(--warn-soft);    color: var(--warn);    border-color: color-mix(in srgb, var(--warn) 26%, transparent); }
-.alert-row.sev-HIGH     .sev { background: var(--danger-soft);  color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 26%, transparent); }
-.alert-row.sev-CRITICAL .sev { background: var(--critical);     color: #fff;           border-color: var(--critical); }
+/*
+ * The severity ladder.
+ *
+ * Four steps that separate at a glance and from a distance, built by
+ * increasing saturation rather than by adding decoration: grey, then a
+ * light amber, then a stronger red tint, then a solid fill. Each step is
+ * a real jump in weight, which is what makes the row scannable without
+ * the reader stopping to read the word — while the word is still there
+ * for anyone who cannot see the difference in hue.
+ */
+.alert-row.sev-LOW      .sev { background: var(--neutral-soft); color: var(--neutral); border-color: color-mix(in srgb, var(--neutral) 30%, transparent); }
+.alert-row.sev-MEDIUM   .sev { background: color-mix(in srgb, var(--warn) 13%, var(--panel));   color: var(--warn);   border-color: color-mix(in srgb, var(--warn) 34%, transparent); }
+.alert-row.sev-HIGH     .sev { background: color-mix(in srgb, var(--danger) 15%, var(--panel)); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.alert-row.sev-CRITICAL .sev { background: var(--critical); color: #fff; border-color: var(--critical); }
 
 .alert-row .message {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
 }
 
 .alert-row .message strong {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.005em;
@@ -1651,17 +1664,18 @@ input[type='number']::-webkit-inner-spin-button {
 .alert-row .message small {
   color: var(--text-dim);
   font-size: 12.5px;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .alert-row .message small b { color: var(--text); font-weight: 500; }
 
-/* Right-hand column: when it happened and where it stands. */
+/* Status and timestamp on one line: both are short, and stacking them
+   cost a row of height that the actions underneath now use. */
 .alert-row-side {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 7px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
   white-space: nowrap;
 }
 
@@ -1671,16 +1685,10 @@ input[type='number']::-webkit-inner-spin-button {
   white-space: nowrap;
 }
 
-/* Actions run along the bottom of the row rather than stacking in a
-   fourth column. Stacked, three buttons made every row as tall as its
-   tallest control and put the destructive one directly under the
-   pointer's resting place. */
 .alert-row-actions {
-  grid-column: 2 / -1;
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 4px;
+  gap: var(--s-1);
+  flex-wrap: nowrap;
 }
 
 .alert-row.status-RESOLVED { opacity: 0.7; }
@@ -1733,8 +1741,6 @@ input[type='number']::-webkit-inner-spin-button {
    chip by chip — it is the supporting detail, so it should not compete
    with the headline for the first glance. */
 .fusion-chip {
-  animation: pop-in var(--dur-fast) var(--ease-spring) backwards;
-  animation-delay: calc(var(--i, 0) * 40ms + 120ms);
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 
@@ -1763,8 +1769,6 @@ input[type='number']::-webkit-inner-spin-button {
 
 .timeline-item {
   position: relative;
-  animation: slide-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: min(calc(var(--i, 0) * 45ms), 320ms);
 }
 
 .timeline-item::before {
@@ -1778,15 +1782,14 @@ input[type='number']::-webkit-inner-spin-button {
   background: var(--neutral);
   box-shadow: 0 0 0 3px var(--bg);
   transition:
-    transform var(--dur-base) var(--ease-spring),
+    transform var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out);
 }
 
-/* The marker swells as its entry is hovered, which is the cue that the
-   dot on the rail and the card beside it are one thing. */
+/* The marker brightens with its entry, which is the cue that the dot on
+   the rail and the card beside it are one thing. */
 .timeline-item:hover::before {
-  transform: scale(1.45);
-  box-shadow: 0 0 0 3px var(--bg), 0 0 12px 0 currentColor;
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px currentColor;
 }
 
 .timeline-item.sev-CRITICAL:hover::before { color: var(--critical); }
@@ -1800,19 +1803,16 @@ input[type='number']::-webkit-inner-spin-button {
 
 /* The card in a timeline entry. */
 .timeline-card {
-  padding: 14px 16px;
-  /* The card's own entrance is handled by .timeline-item; running it
-     again here would double the fade. */
-  animation: none;
+  padding: var(--s-3) var(--s-4);
   transition:
-    transform var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
+/* Tint, not travel — the same hover the alert feed uses, so the two
+   lists of incidents answer the pointer identically. */
 .timeline-item:hover .timeline-card {
-  transform: translateX(3px);
-  box-shadow: var(--shadow-hover);
+  background: var(--panel-hover);
   border-color: var(--border-strong);
 }
 
@@ -1931,17 +1931,10 @@ input[type='number']::-webkit-inner-spin-button {
  * travel into the row rather than lighting up around it.
  */
 .admin-user-table tbody tr {
-  animation: fade-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: min(calc(var(--i, 0) * 35ms), 280ms);
   transition: background var(--dur-fast) var(--ease-out);
 }
 
 .admin-user-table tbody tr:hover { background: var(--panel-hover); }
-
-.admin-user-table tbody td:first-child {
-  transition: transform var(--dur-base) var(--ease-out);
-}
-.admin-user-table tbody tr:hover td:first-child { transform: translateX(3px); }
 
 /* Row actions stay out of the way until the row is under the pointer,
    which keeps a long table from reading as a grid of buttons. They are
@@ -2029,21 +2022,25 @@ input[type='number']::-webkit-inner-spin-button {
   margin-bottom: 18px;
 }
 
-.analytics-kpi {
-  padding: 15px 16px;
-  animation-delay: calc(var(--i, 0) * 60ms);
-  transition:
-    transform var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out);
-}
-
-.analytics-kpi:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-hover);
-}
+/* Readouts, like the dashboard counters — no lift, for the same reason:
+   nothing here is clickable. */
+.analytics-kpi { padding: var(--s-3) var(--s-4); }
 
 .analytics-kpi h3 { font-size: 10.5px; }
-.analytics-kpi .value { display: block; font-size: 25px; margin-top: 6px; }
+.analytics-kpi .value { display: block; font-size: 22px; margin-top: var(--s-1); }
+
+/* The severity that a KPI counts, tinting its own label. Replaces an
+   inline `style={{ color }}`, so the value lives with the rest of the
+   severity palette and follows the theme like everything else.
+
+   Two classes rather than one: `.card h3` is (0,1,1) and would otherwise
+   win against a single class and grey these back out. */
+.kpi-label.sev-text-CRITICAL { color: var(--critical); }
+.kpi-label.sev-text-HIGH     { color: var(--danger); }
+.kpi-label.sev-text-MEDIUM   { color: var(--warn); }
+.kpi-label.sev-text-LOW      { color: var(--neutral); }
+
+.chart-card { margin-bottom: var(--s-3); }
 
 .analytics-grid {
   display: grid;
@@ -2061,24 +2058,15 @@ input[type='number']::-webkit-inner-spin-button {
 .chart-grid { stroke: var(--border); stroke-width: 1; }
 .chart-axis-label { fill: var(--text-light); font-size: 10px; font-variant-numeric: tabular-nums; }
 
-/*
- * The chart assembles itself: the line draws from left to right, the
- * fill underneath rises to meet it, and the points arrive last. It reads
- * as the series being plotted, which is what the operator is looking at
- * — and it runs left to right because that is the direction of time on
- * this axis. A chart that faded in as a finished picture would say
- * nothing about which end is "now".
- */
+/* The chart is drawn, not performed. It used to trace itself in from the
+   left while the area rose to meet it; on a panel someone opens to read a
+   number, that is a second of waiting bought with nothing. */
 .chart-line {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
-  /* --dash is set inline to the path's own measured length, so the
-     dash covers exactly the line however many days are in view. */
-  stroke-dasharray: var(--dash, 1200);
-  animation: draw-line 1.1s var(--ease-out) backwards;
 }
 
 /* One flat low-opacity tint under the line. A vertical fade would need a
@@ -2086,23 +2074,13 @@ input[type='number']::-webkit-inner-spin-button {
    anyway — the area is here to weight the series, not to be looked at. */
 .chart-area {
   fill: var(--accent);
-  opacity: 0.12;
-  transform-origin: bottom;
-  animation: chart-area-rise 900ms var(--ease-out) 180ms backwards;
-}
-
-@keyframes chart-area-rise {
-  from { opacity: 0; transform: scaleY(0.6); }
-  to   { opacity: 0.12; transform: scaleY(1); }
+  opacity: 0.1;
 }
 
 .chart-dot {
   fill: var(--accent);
   stroke: var(--panel);
   stroke-width: 1.5;
-  animation: pop-in var(--dur-base) var(--ease-spring) backwards;
-  /* Each point follows the line's leading edge as it is drawn. */
-  animation-delay: calc(700ms + var(--i, 0) * 12ms);
   transition: r var(--dur-fast) var(--ease-out);
 }
 
@@ -2116,8 +2094,6 @@ input[type='number']::-webkit-inner-spin-button {
   grid-template-columns: minmax(90px, 150px) 1fr 44px;
   gap: 12px;
   align-items: center;
-  animation: slide-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 55ms);
 }
 
 .bar-label {
@@ -2147,15 +2123,14 @@ input[type='number']::-webkit-inner-spin-button {
  * animates, because transform is composited and width is not — fifty
  * bars animating width would drop frames on the wall display.
  */
+/* No width transition. Animating width forces layout on every frame, and
+   the bars only change when the reporting window changes — a moment the
+   whole panel re-renders anyway, so there is nothing to smooth between. */
 .bar-fill {
   display: block;
   height: 100%;
   border-radius: var(--r-pill);
   min-width: 2px;
-  transform-origin: left center;
-  transition: width var(--dur-slow) var(--ease-out);
-  animation: grow-x 700ms var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 55ms + 90ms);
 }
 
 .bar-value {
@@ -2327,8 +2302,6 @@ input[type='number']::-webkit-inner-spin-button {
   transition:
     border-color var(--dur-fast) var(--ease-out),
     background var(--dur-fast) var(--ease-out);
-  animation: rise-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 50ms);
 }
 
 .live-camera-row:hover {
@@ -2439,7 +2412,6 @@ input[type='number']::-webkit-inner-spin-button {
     max-width var(--dur-base) var(--ease-out),
     padding var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out);
-  animation: rise-in var(--dur-slow) var(--ease-out) backwards;
 }
 
 .map3d-hud-panel--collapsed { width: fit-content; max-width: min(280px, 100%); padding: 8px 12px; }
@@ -2451,7 +2423,7 @@ input[type='number']::-webkit-inner-spin-button {
   animation: fade-in var(--dur-base) var(--ease-out) 90ms backwards;
 }
 
-.map3d-hud-toggle svg { transition: transform var(--dur-base) var(--ease-spring); }
+.map3d-hud-toggle svg { transition: transform var(--dur-base) var(--ease-out); }
 .map3d-hud-toggle:hover svg { transform: scale(1.15); }
 
 .map3d-hud-panel-header {
@@ -2652,15 +2624,13 @@ input[type='number']::-webkit-inner-spin-button {
   padding: 14px 18px;
   border-top: 1px solid var(--border);
   transition: background var(--dur-fast) var(--ease-out);
-  animation: fade-in var(--dur-base) var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 40ms);
 }
 
 .settings-row:first-child { border-top: none; }
 .settings-row:hover { background: var(--panel-hover); }
 
 .settings-row-icon-wrap {
-  transition: transform var(--dur-base) var(--ease-spring);
+  transition: transform var(--dur-base) var(--ease-out);
 }
 .settings-row:hover .settings-row-icon-wrap { transform: scale(1.08); }
 
@@ -2754,7 +2724,7 @@ input[type='number']::-webkit-inner-spin-button {
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.3);
   transition:
-    transform var(--dur-base) var(--ease-spring),
+    transform var(--dur-base) var(--ease-out),
     width var(--dur-fast) var(--ease-out);
   display: block;
 }
@@ -2914,25 +2884,13 @@ input[type='number']::-webkit-inner-spin-button {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  animation: login-card-in var(--dur-slower) var(--ease-out);
+  animation: login-card-in var(--dur-slow) var(--ease-out);
 }
 
 @keyframes login-card-in {
   from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.97); }
   to   { opacity: 1; transform: none; }
 }
-
-/* The form deals itself out: mark, then heading, then each field, then
-   the button. `nth-child` supplies the beat, so no markup carries an
-   index for a form whose field order is fixed. */
-.login-card > * {
-  animation: rise-in var(--dur-base) var(--ease-out) backwards;
-}
-.login-card > *:nth-child(1) { animation-delay: 120ms; }
-.login-card > *:nth-child(2) { animation-delay: 190ms; }
-.login-card > *:nth-child(3) { animation-delay: 250ms; }
-.login-card > *:nth-child(4) { animation-delay: 310ms; }
-.login-card > *:nth-child(5) { animation-delay: 360ms; }
 
 .login-brand {
   display: flex;
@@ -2950,7 +2908,6 @@ input[type='number']::-webkit-inner-spin-button {
   justify-content: center;
   background: var(--accent);
   color: var(--on-accent);
-  animation: pop-in var(--dur-slow) var(--ease-spring) 140ms backwards;
 }
 
 .login-brand h1 {
@@ -3328,17 +3285,25 @@ input[type='number']::-webkit-inner-spin-button {
    * on the top band rather than stranding a right-aligned column of two
    * short strings beside a paragraph.
    */
-  .alert-row { grid-template-columns: auto minmax(0, 1fr); }
+  .alert-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
   .alert-row .sev { grid-column: 1; grid-row: 1; }
 
   .alert-row-side {
     grid-column: 2;
     grid-row: 1;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
+    justify-content: flex-end;
+    gap: var(--s-2);
   }
 
   .alert-row .message { grid-column: 1 / -1; grid-row: 2; }
-  .alert-row-actions { grid-column: 1 / -1; grid-row: 3; }
+
+  .alert-row-actions {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    flex-wrap: wrap;
+  }
 }

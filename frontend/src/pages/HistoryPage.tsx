@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { deleteAlert, deleteAllAlerts, listAlerts } from '../api/alerts'
 import { useAuth } from '../context/AuthContext'
@@ -176,13 +176,8 @@ export function HistoryPage() {
       )}
 
       <div className="timeline">
-        {visible.map((a, i) => (
-          <div
-            key={a.id}
-            className={`timeline-item sev-${a.severity}`}
-            /* Position in the list, read by the entrance stagger. */
-            style={{ '--i': i } as CSSProperties}
-          >
+        {visible.map((a) => (
+          <div key={a.id} className={`timeline-item sev-${a.severity}`}>
             <div className="card timeline-card">
               <div className="timeline-card-head">
                 {/*

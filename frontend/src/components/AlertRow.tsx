@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { acknowledgeAlert, resolveAlert } from '../api/alerts'
 import { useLiveAlertsContext } from '../context/LiveAlertsContext'
@@ -8,8 +8,6 @@ import { IconCheck, IconCheckCircle, IconNavigation } from './icons'
 
 interface Props {
   alert: Alert
-  /** Position in its list, driving the feed's staggered entrance. */
-  index?: number
 }
 
 import { useT } from '../lib/useT'
@@ -80,7 +78,7 @@ function FusionDetails({ details }: { details: AlertDetails }) {
   )
 }
 
-export function AlertRow({ alert, index = 0 }: Props) {
+export function AlertRow({ alert }: Props) {
   const t = useT()
   const navigate = useNavigate()
   const { updateAlert } = useLiveAlertsContext()
@@ -120,10 +118,7 @@ export function AlertRow({ alert, index = 0 }: Props) {
   }
 
   return (
-    <div
-      className={`alert-row sev-${alert.severity} status-${alert.status}`}
-      style={{ '--i': index } as CSSProperties}
-    >
+    <div className={`alert-row sev-${alert.severity} status-${alert.status}`}>
       <span className="sev">{t(`severity.${alert.severity}`)}</span>
       <div className="message">
         <strong>{t(`alertType.${alert.type}`)}</strong>
@@ -182,11 +177,11 @@ export function AlertRow({ alert, index = 0 }: Props) {
         <time>{ts}</time>
       </div>
       {/*
-        The three controls sit on one line under the message rather than
-        stacked in a column of their own. Stacked, they set the height of
-        every row to the height of its tallest control — so a one-line
-        alert took three lines of space — and put the irreversible action
-        directly below where the pointer already was.
+        The controls sit in the meta column, under the timestamp, rather
+        than on a band of their own across the bottom of the row. That
+        band cost 40px of every row for space the meta column was already
+        wasting, and on a feed the operator scrolls all shift, height per
+        incident is the property that matters most.
 
         Order runs from least to most consequential, left to right, and
         only the step that actually closes the incident is filled in.

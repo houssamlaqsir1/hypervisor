@@ -25,16 +25,24 @@ export function Skeleton({ width, height = 12, radius, className }: SkeletonProp
   )
 }
 
+/*
+ * The placeholders below deliberately mirror the real components' current
+ * dimensions — a 32px icon tile, a 22px figure, three lines of message.
+ * That is the whole point of a skeleton: if it is not the size of what
+ * replaces it, the page still jumps when the data lands, and it has done
+ * nothing except make the wait prettier.
+ */
+
 /** The five counters across the top of the dashboard, before they load. */
 export function StatRowSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="dash-stat-row" aria-hidden="true">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="dash-stat-card" style={{ '--i': i } as React.CSSProperties}>
-          <Skeleton width={42} height={42} radius="var(--r-lg)" />
-          <div className="dash-stat-info" style={{ flex: 1, gap: 8 }}>
-            <Skeleton width="56%" height={22} />
-            <Skeleton width="76%" height={10} />
+        <div key={i} className="dash-stat-card">
+          <Skeleton width={32} height={32} radius="var(--r-sm)" />
+          <div className="dash-stat-info" style={{ flex: 1, gap: 6 }}>
+            <Skeleton width="52%" height={16} />
+            <Skeleton width="74%" height={9} />
           </div>
         </div>
       ))}
@@ -43,20 +51,20 @@ export function StatRowSkeleton({ count = 5 }: { count?: number }) {
 }
 
 /** Rows in the alert feed, before they load. */
-export function AlertListSkeleton({ count = 4 }: { count?: number }) {
+export function AlertListSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="alert-list" aria-hidden="true">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="alert-row" style={{ '--i': i } as React.CSSProperties}>
-          <Skeleton width={62} height={16} radius="var(--r-xs)" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-            <Skeleton width="34%" height={13} />
-            <Skeleton width="88%" height={11} />
-            <Skeleton width="26%" height={11} />
+        <div key={i} className="alert-row">
+          <Skeleton width={58} height={17} radius="var(--r-xs)" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
+            <Skeleton width="32%" height={12} />
+            <Skeleton width="86%" height={11} />
+            <Skeleton width="24%" height={11} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-            <Skeleton width={54} height={16} radius="var(--r-xs)" />
-            <Skeleton width={94} height={10} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+            <Skeleton width={150} height={17} />
+            <Skeleton width={210} height={26} radius="var(--r-sm)" />
           </div>
         </div>
       ))}
@@ -84,10 +92,8 @@ export function TableSkeleton({ rows = 4, columns = 5 }: { rows?: number; column
         {Array.from({ length: rows }, (_, r) => (
           <div
             key={r}
-            className="stagger-in"
             style={
               {
-                '--i': r,
                 display: 'grid',
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                 gap: 16,

@@ -410,7 +410,7 @@ export function LiveWatchPage() {
           )}
 
           {selectedCamera && (
-            <div className="muted small" style={{ marginTop: 10 }}>
+            <div className="muted small" style={{ marginTop: 12 }}>
               <div className="tabular">
                 {t('live.ingested', { count: status?.webcamEventsTotal ?? 0 })} &middot;{' '}
                 {t('live.lastDetection', {
@@ -479,7 +479,7 @@ export function LiveWatchPage() {
             </span>
           </div>
 
-          <p className="muted small" style={{ margin: '0 0 10px' }}>
+          <p className="muted small" style={{ margin: '0 0 12px' }}>
             {t('live.openSky')}
           </p>
           <div className="status-row">
@@ -524,7 +524,7 @@ export function LiveWatchPage() {
             />
             {t('live.gpsUseDevice')}
           </label>
-          <p className="muted small" style={{ margin: '10px 0' }}>
+          <p className="muted small" style={{ margin: '12px 0' }}>
             {t('live.gpsHelp')}
           </p>
           <div className="btn-row">

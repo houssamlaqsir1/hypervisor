@@ -1,7 +1,6 @@
 import { Suspense, lazy, type ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Sidebar } from './components/Sidebar'
-import { PageTransition } from './components/PageTransition'
 import {
   LiveAlertsProvider,
   useLiveAlertsContext,
@@ -71,9 +70,6 @@ function AuthedApp() {
       <Sidebar wsState={connectionState} />
       <main className="main">
         <Suspense fallback={<RouteLoading />}>
-          {/* Wraps the whole switch rather than each route, so the
-              transition is defined once and every page gets it. */}
-          <PageTransition>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/live" element={<LiveWatchPage />} />
@@ -107,7 +103,6 @@ function AuthedApp() {
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-          </PageTransition>
         </Suspense>
       </main>
     </div>

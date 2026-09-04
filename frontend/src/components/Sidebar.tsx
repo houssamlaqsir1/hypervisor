@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import type { ComponentType, CSSProperties } from 'react'
+import type { ComponentType } from 'react'
 import type { ConnectionState } from '../context/LiveAlertsContext'
 import { useLiveCameras } from '../context/LiveCamerasContext'
 import { useAuth } from '../context/AuthContext'
@@ -98,7 +98,7 @@ export function Sidebar({ wsState }: Props) {
         <p className="sidebar-section-label">{t('nav.section')}</p>
 
         <nav>
-          {nav.map((item, i) => (
+          {nav.map((item) => (
             /* The label is hidden by CSS on a narrow viewport, where the
                rail collapses to icons — so each link carries its name as a
                title too, or the collapsed rail becomes nine mystery glyphs. */
@@ -107,9 +107,6 @@ export function Sidebar({ wsState }: Props) {
               to={item.to}
               end={item.end}
               title={t(item.labelKey)}
-              /* Row index, read by the stagger in index.css so the rail
-                 deals itself out top to bottom on first paint. */
-              style={{ '--i': i } as CSSProperties}
             >
               <span className="nav-icon">
                 <item.Icon size={18} />

@@ -119,7 +119,7 @@ export function DashboardPage() {
         <StatRowSkeleton />
       ) : (
         <div className="dash-stat-row">
-          {STAT_CARDS.map((c, i) => (
+          {STAT_CARDS.map((c) => (
             <div
               key={c.key}
               className="dash-stat-card"
@@ -127,8 +127,6 @@ export function DashboardPage() {
                 {
                   '--card-accent': c.accent,
                   '--card-accent-soft': c.soft,
-                  /* Position in the row, read by the entrance stagger. */
-                  '--i': i,
                 } as React.CSSProperties
               }
             >
@@ -171,8 +169,8 @@ export function DashboardPage() {
       )}
 
       <div className="alert-list">
-        {visibleAlerts.slice(0, 30).map((a, i) => (
-          <AlertRow key={a.id} alert={a} index={i} />
+        {visibleAlerts.slice(0, 30).map((a) => (
+          <AlertRow key={a.id} alert={a} />
         ))}
       </div>
     </>

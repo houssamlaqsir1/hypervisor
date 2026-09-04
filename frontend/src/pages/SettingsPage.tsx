@@ -46,8 +46,6 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 interface ShellProps {
-  /** Position in the panel, driving the rows' entrance stagger. */
-  index?: number
   Icon: ComponentType<{ size?: number }>
   /**
    * Accent for the row's icon tile, given as a CSS variable rather than a
@@ -65,9 +63,9 @@ interface ShellProps {
 }
 
 /** Icon, label, description, optional status line, and one control. */
-function SettingRowShell({ index = 0, Icon, tone, toneSoft, label, desc, note, noteTone, control }: ShellProps) {
+function SettingRowShell({ Icon, tone, toneSoft, label, desc, note, noteTone, control }: ShellProps) {
   return (
-    <div className="settings-row" style={{ '--i': index } as CSSProperties}>
+    <div className="settings-row">
       <div
         className="settings-row-icon-wrap"
         style={{ '--row-accent': tone, '--row-accent-soft': toneSoft } as CSSProperties}
@@ -269,7 +267,6 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.alerts')}</p>
 
           <SettingRow
-            index={0}
             Icon={IconBell}
             tone="var(--accent)"
             toneSoft="var(--accent-soft)"
@@ -282,7 +279,6 @@ export function SettingsPage() {
           />
 
           <SettingRow
-            index={1}
             Icon={IconSiren}
             tone="var(--danger)"
             toneSoft="var(--danger-soft)"
@@ -295,7 +291,6 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.location')}</p>
 
           <SettingRow
-            index={2}
             Icon={IconMapPin}
             tone="var(--success)"
             toneSoft="var(--success-soft)"
@@ -310,7 +305,6 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.appearance')}</p>
 
           <SettingRow
-            index={3}
             Icon={IconMoon}
             tone="var(--neutral)"
             toneSoft="var(--neutral-soft)"
@@ -323,7 +317,6 @@ export function SettingsPage() {
           <p className="settings-group-label">{t('settings.group.language')}</p>
 
           <SettingSelectRow
-            index={4}
             Icon={IconLanguage}
             tone="var(--accent)"
             toneSoft="var(--accent-soft)"
