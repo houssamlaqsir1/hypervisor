@@ -982,16 +982,13 @@ h3 {
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--panel);
-  transition:
-    transform var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out);
+  transition: border-color var(--dur-base) var(--ease-out);
 }
 
 /*
  * A wash of the card's own severity colour, bleeding in from the leading
- * edge and invisible until the pointer arrives. It is what makes the
- * hover feel like the card lighting up rather than merely rising.
+ * edge and invisible until the pointer arrives. With the card itself
+ * holding still, this is the entire hover.
  *
  * It fades out by 62% of the width, so the figure and its label are
  * always read against the plain panel rather than through a tint — the
@@ -1016,21 +1013,22 @@ h3 {
 .dash-stat-card > * { position: relative; z-index: 1; }
 
 /*
- * The counters lift under the pointer: up three pixels, onto a cast
- * shadow, the severity tile turning slightly into the movement while the
- * card's own colour washes in from the leading edge. It is the one place
- * in the console with a deliberately generous hover, and it reads as the
- * card lighting up rather than merely rising.
+ * Nothing on these cards moves under the pointer. The card's own colour
+ * washes in and the outline takes a cast of it; the geometry stays
+ * exactly where it was.
  *
- * The one part of the earlier version deliberately not restored is the
- * accent bar that ran down the leading edge and widened on hover: that
- * is a coloured left border at rest, which every other surface here has
- * dropped. The wash carries the same colour, only while the pointer is
- * actually on the card.
+ * That is the whole point. A counter is a readout, not a control, and
+ * the cues that say "control" are the ones that move: a lift onto a cast
+ * shadow, an icon scaling up. Both were here and both are gone — they
+ * made five things that cannot be clicked behave like five buttons.
+ * Colour alone says "you are pointing at this" without promising
+ * anything happens if you press it.
+ *
+ * Also deliberately absent: the accent bar that used to run down the
+ * leading edge and widen on hover. It is a coloured left border at rest,
+ * which every other surface here has dropped.
  */
 .dash-stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-hover);
   /*
    * The border takes a cast of the card's own severity, so the outline
    * agrees with the wash rather than going neutral grey against it —
@@ -1061,13 +1059,7 @@ h3 {
   flex-shrink: 0;
   color: var(--card-accent, var(--accent));
   background: var(--card-accent-soft, var(--accent-soft));
-  transition: transform var(--dur-base) var(--ease-out);
 }
-
-/* A small turn, not a bounce — the spring curve that carried this
-   originally is gone from the console, and an overshoot here would be
-   the one springy control on the page. */
-.dash-stat-card:hover .dash-stat-icon { transform: scale(1.08) rotate(-4deg); }
 
 .dash-stat-info {
   display: flex;
@@ -2073,7 +2065,20 @@ input[type='number']::-webkit-inner-spin-button {
 
 /* Readouts, like the dashboard counters — no lift, for the same reason:
    nothing here is clickable. */
-.analytics-kpi { padding: var(--s-3) var(--s-4); }
+/*
+ * Same hover as the dashboard counters — the outline firms up and
+ * nothing moves — but neutral rather than tinted. These five already
+ * carry their severity in the label above the figure, so a coloured
+ * outline would be saying it a second time; and unlike the dashboard,
+ * where the wash is the whole effect, there is no wash here for a
+ * coloured border to agree with.
+ */
+.analytics-kpi {
+  padding: var(--s-3) var(--s-4);
+  transition: border-color var(--dur-base) var(--ease-out);
+}
+
+.analytics-kpi:hover { border-color: var(--border-strong); }
 
 .analytics-kpi h3 { font-size: 10.5px; }
 .analytics-kpi .value { display: block; font-size: 22px; margin-top: var(--s-1); }
